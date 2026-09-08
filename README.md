@@ -11,6 +11,18 @@ npm run dev
 
 The app runs at [http://localhost:3000](http://localhost:3000) by default.
 
+## AI generation
+
+Copy `.env.example` to `.env.local`, add your Anthropic API key, and restart
+the development server:
+
+```bash
+ANTHROPIC_API_KEY=your_key_here
+```
+
+The key is read only by the server route and is never sent to the browser.
+`ANTHROPIC_MODEL` is optional; the default is Claude Haiku 4.5.
+
 ## Project structure
 
 - `app` — Next.js routes, layout, metadata, and global styles

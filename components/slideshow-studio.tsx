@@ -7,6 +7,7 @@ import {
   Copy,
   ImagePlus,
   Layers3,
+  LoaderCircle,
   Plus,
   RotateCcw,
   Sparkles,
@@ -18,7 +19,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CompositionDialog } from "@/components/composition-dialog"
-import type { CompositionResult } from "@/lib/composition"
+import { applyGeneratedCopy, type CompositionResult } from "@/lib/composition"
+import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
 import {
   createProject,
   createSlide,
@@ -49,6 +51,9 @@ export function SlideshowStudio() {
   )
   const [notice, setNotice] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
+  const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(
+    null
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -215,6 +220,71 @@ export function SlideshowStudio() {
     }))
     setComposerOpen(false)
     setNotice(`${result.slides.length} editable slides composed.`)
+  }
+
+  async function regenerateActiveSlide() {
+    const slide = activeSlide
+    const slideIndex = activeIndex
+    const previousSlide = project.slides[slideIndex - 1]
+    const nextSlide = project.slides[slideIndex + 1]
+
+    setRegeneratingSlideId(slide.id)
+    setNotice(null)
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "slide",
+          projectTitle: project.title,
+          slideIndex,
+          slideCount: project.slides.length,
+          currentHook: getTextLayer(slide, "hook")?.text ?? "",
+          currentBody: getTextLayer(slide, "body")?.text ?? "",
+          previousHook: previousSlide
+            ? (getTextLayer(previousSlide, "hook")?.text ?? null)
+            : null,
+          nextHook: nextSlide
+            ? (getTextLayer(nextSlide, "hook")?.text ?? null)
+            : null,
+          layoutId: slide.layoutId,
+        }),
+      })
+      const payload: unknown = await response.json()
+      const responseBody = isRecord(payload) ? payload : {}
+
+      if (!response.ok) {
+        throw new Error(
+          typeof responseBody.error === "string"
+            ? responseBody.error
+            : "Claude could not rewrite this slide."
+        )
+      }
+
+      const generated = generatedSlideSchema.safeParse(responseBody.data)
+      if (!generated.success) {
+        throw new Error("Claude returned incomplete slide copy. Try again.")
+      }
+
+      updateProject((current) => ({
+        ...current,
+        slides: current.slides.map((currentSlide) =>
+          currentSlide.id === slide.id
+            ? applyGeneratedCopy(currentSlide, generated.data)
+            : currentSlide
+        ),
+      }))
+      setNotice(`Slide ${slideIndex + 1} rewritten.`)
+    } catch (generationError) {
+      setNotice(
+        generationError instanceof Error
+          ? generationError.message
+          : "Something went wrong while rewriting this slide."
+      )
+    } finally {
+      setRegeneratingSlideId(null)
+    }
   }
 
   function startNewProject() {
@@ -504,9 +574,27 @@ export function SlideshowStudio() {
               <h2 className="text-sm font-semibold">Slide setup</h2>
             </div>
             <p className="text-xs leading-relaxed text-black/45">
-              Changes are saved in this browser. Prompt generation will use this
-              same editable slide format later.
+              Changes are saved in this browser. AI rewrites stay fully
+              editable.
             </p>
+            <Button
+              variant="outline"
+              className="mt-3 w-full"
+              disabled={regeneratingSlideId !== null}
+              onClick={() => void regenerateActiveSlide()}
+            >
+              {regeneratingSlideId === activeSlide.id ? (
+                <LoaderCircle
+                  data-icon="inline-start"
+                  className="animate-spin"
+                />
+              ) : (
+                <Sparkles data-icon="inline-start" />
+              )}
+              {regeneratingSlideId === activeSlide.id
+                ? "Rewriting…"
+                : "Rewrite this slide"}
+            </Button>
           </div>
 
           <fieldset className="mb-6">
@@ -624,6 +712,10 @@ export function SlideshowStudio() {
       />
     </main>
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
 
 function getTextLayerStyle(

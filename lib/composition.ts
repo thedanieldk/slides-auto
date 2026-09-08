@@ -1,10 +1,15 @@
 import {
+  applySlideLayout,
   createSlide,
   getTextLayer,
   type SlideLayoutId,
   type SlideshowSlide,
   type TextLayer,
 } from "@/lib/slideshow"
+import type {
+  GeneratedSlide,
+  GeneratedSlideshow,
+} from "@/lib/ai/slideshow-generation"
 
 export type CompositionOptions = {
   script: string
@@ -60,8 +65,8 @@ export function composeScript({
     const slide = createSlide(index + 1, layoutId)
     const { hook, body } = createSlideCopy(group)
     const textLayers = slide.textLayers.map((layer) => {
-      if (layer.role === "hook") return fitLayer({ ...layer, text: hook })
-      if (layer.role === "body") return fitLayer({ ...layer, text: body })
+      if (layer.role === "hook") return fitTextLayer({ ...layer, text: hook })
+      if (layer.role === "body") return fitTextLayer({ ...layer, text: body })
       return layer
     })
 
@@ -76,6 +81,46 @@ export function composeScript({
   return {
     title: firstHook ? makeTitle(firstHook) : "Composed slideshow",
     slides,
+  }
+}
+
+export function composeGeneratedSlideshow(
+  generated: GeneratedSlideshow
+): CompositionResult {
+  return {
+    title: generated.title,
+    slides: generated.slides.map((generatedSlide, index) =>
+      applyGeneratedCopy(
+        createSlide(index + 1, generatedSlide.layoutId),
+        generatedSlide
+      )
+    ),
+  }
+}
+
+export function applyGeneratedCopy(
+  slide: SlideshowSlide,
+  generated: GeneratedSlide
+): SlideshowSlide {
+  const slideWithLayout =
+    slide.layoutId === generated.layoutId
+      ? slide
+      : applySlideLayout(slide, generated.layoutId)
+
+  return {
+    ...slideWithLayout,
+    id: slide.id,
+    image: slide.image,
+    imageQuery: generated.imageQuery,
+    textLayers: slideWithLayout.textLayers.map((layer) => {
+      if (layer.role === "hook") {
+        return fitTextLayer({ ...layer, text: generated.hook })
+      }
+      if (layer.role === "body") {
+        return fitTextLayer({ ...layer, text: generated.body })
+      }
+      return layer
+    }),
   }
 }
 
@@ -148,7 +193,7 @@ function createSlideCopy(group: string[]) {
   }
 }
 
-function fitLayer(layer: TextLayer): TextLayer {
+export function fitTextLayer(layer: TextLayer): TextLayer {
   const length = layer.text.length
   const multiplier =
     layer.role === "hook"

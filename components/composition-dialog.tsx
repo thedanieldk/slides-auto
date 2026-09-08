@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   FileText,
   ImageIcon,
+  LoaderCircle,
   WandSparkles,
   X,
 } from "lucide-react"
@@ -13,10 +14,12 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
+  composeGeneratedSlideshow,
   composeScript,
   hasTextOverflowRisk,
   type CompositionResult,
 } from "@/lib/composition"
+import { generatedSlideshowSchema } from "@/lib/ai/slideshow-generation"
 import { getTextLayer, slideLayouts, type SlideLayoutId } from "@/lib/slideshow"
 
 type CompositionDialogProps = {
@@ -25,15 +28,20 @@ type CompositionDialogProps = {
   onApply: (result: CompositionResult) => void
 }
 
+type ComposerMode = "ai" | "script"
+
 export function CompositionDialog({
   open,
   onClose,
   onApply,
 }: CompositionDialogProps) {
   const [script, setScript] = useState("")
+  const [mode, setMode] = useState<ComposerMode>("ai")
   const [slideCount, setSlideCount] = useState(5)
   const [layoutId, setLayoutId] = useState<SlideLayoutId>("editorial")
   const [result, setResult] = useState<CompositionResult | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -44,19 +52,73 @@ export function CompositionDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose, open])
 
-  function buildPreview() {
+  async function buildPreview() {
     if (script.trim().length < 12) return
-    setResult(composeScript({ script, slideCount, layoutId }))
+
+    if (mode === "script") {
+      setResult(composeScript({ script, slideCount, layoutId }))
+      return
+    }
+
+    setIsGenerating(true)
+    setError(null)
+    setResult(null)
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "slideshow",
+          prompt: script,
+          slideCount,
+          layoutId,
+        }),
+      })
+      const payload: unknown = await response.json()
+      const responseBody = isRecord(payload) ? payload : {}
+
+      if (!response.ok) {
+        throw new Error(
+          typeof responseBody.error === "string"
+            ? responseBody.error
+            : "Claude could not generate the slideshow."
+        )
+      }
+
+      const generated = generatedSlideshowSchema.safeParse(responseBody.data)
+      if (!generated.success) {
+        throw new Error("Claude returned an incomplete slideshow. Try again.")
+      }
+
+      setResult(composeGeneratedSlideshow(generated.data))
+    } catch (generationError) {
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Something went wrong while generating the slideshow."
+      )
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   function updateScript(value: string) {
     setScript(value)
     setResult(null)
+    setError(null)
   }
 
   function updateLayout(value: SlideLayoutId) {
     setLayoutId(value)
     setResult(null)
+    setError(null)
+  }
+
+  function updateMode(value: ComposerMode) {
+    setMode(value)
+    setResult(null)
+    setError(null)
   }
 
   return (
@@ -87,12 +149,12 @@ export function CompositionDialog({
                 <div className="mb-1 flex items-center gap-2">
                   <WandSparkles className="size-4.5 text-[#f06f5d]" />
                   <h2 id="composer-title" className="text-base font-semibold">
-                    Compose from a script
+                    Create a slideshow
                   </h2>
                 </div>
                 <p className="max-w-xl text-xs leading-relaxed text-black/50">
-                  Paste rough notes or finished copy. The composer turns it into
-                  editable hook and body layers—no AI call yet.
+                  Start with one idea and let Claude write it, or split copy you
+                  already have into editable slides.
                 </p>
               </div>
               <button
@@ -107,22 +169,54 @@ export function CompositionDialog({
 
             <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(20rem,.78fr)] lg:overflow-hidden">
               <div className="border-b border-black/10 p-5 md:p-7 lg:overflow-y-auto lg:border-r lg:border-b-0">
+                <div className="mb-5 grid grid-cols-2 rounded-xl bg-black/5 p-1">
+                  {(
+                    [
+                      ["ai", "Write with AI"],
+                      ["script", "Use my script"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateMode(value)}
+                      className={cn(
+                        "rounded-lg px-3 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                        mode === value
+                          ? "bg-white text-black shadow-sm"
+                          : "text-black/45 hover:text-black/70"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 <label className="mb-6 block">
                   <span className="mb-2 flex items-center justify-between gap-4 text-xs font-semibold text-black/60">
                     <span className="flex items-center gap-1.5">
-                      <FileText className="size-3.5" /> Script or outline
+                      {mode === "ai" ? (
+                        <WandSparkles className="size-3.5" />
+                      ) : (
+                        <FileText className="size-3.5" />
+                      )}
+                      {mode === "ai"
+                        ? "What is this about?"
+                        : "Script or outline"}
                     </span>
                     <span className="font-normal text-black/35 tabular-nums">
-                      {script.length}/4000
+                      {script.length}/{mode === "ai" ? 2000 : 4000}
                     </span>
                   </span>
                   <textarea
                     autoFocus
                     value={script}
-                    maxLength={4000}
+                    maxLength={mode === "ai" ? 2000 : 4000}
                     onChange={(event) => updateScript(event.target.value)}
                     placeholder={
-                      "Why most morning routines fail.\n\nPeople try to change everything at once.\n\nStart with one action you can repeat..."
+                      mode === "ai"
+                        ? "I kept putting off the gym because I thought every workout had to be perfect. Write about what finally helped me stay consistent."
+                        : "Why most morning routines fail.\n\nPeople try to change everything at once.\n\nStart with one action you can repeat..."
                     }
                     className="min-h-52 w-full resize-y rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-relaxed transition outline-none placeholder:text-black/28 focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
                   />
@@ -184,13 +278,33 @@ export function CompositionDialog({
                   </div>
                 </fieldset>
 
+                {error && (
+                  <p
+                    className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-700"
+                    role="alert"
+                  >
+                    {error}
+                  </p>
+                )}
+
                 <Button
-                  className="mt-6 w-full"
-                  disabled={script.trim().length < 12}
-                  onClick={buildPreview}
+                  className="mt-5 w-full"
+                  disabled={script.trim().length < 12 || isGenerating}
+                  onClick={() => void buildPreview()}
                 >
-                  <WandSparkles data-icon="inline-start" />
-                  Build preview
+                  {isGenerating ? (
+                    <LoaderCircle
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <WandSparkles data-icon="inline-start" />
+                  )}
+                  {isGenerating
+                    ? "Writing slides…"
+                    : mode === "ai"
+                      ? "Generate preview"
+                      : "Build preview"}
                 </Button>
               </div>
 
@@ -273,8 +387,9 @@ export function CompositionDialog({
                       </div>
                       <p className="text-xs font-semibold">No preview yet</p>
                       <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
-                        Add at least a sentence, choose a layout, then build the
-                        composition.
+                        {mode === "ai"
+                          ? "Describe the story you want to tell, then Claude will draft the slides here."
+                          : "Add at least a sentence, choose a layout, then build the composition."}
                       </p>
                     </div>
                   </div>
@@ -286,6 +401,10 @@ export function CompositionDialog({
       )}
     </AnimatePresence>
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
 
 function LayoutMiniature({ layoutId }: { layoutId: SlideLayoutId }) {
