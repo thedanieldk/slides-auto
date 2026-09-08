@@ -10,8 +10,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
-import { Button } from "@workspace/ui/components/button"
-import { cn } from "@workspace/ui/lib/utils"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   composeScript,
   hasTextOverflowRisk,

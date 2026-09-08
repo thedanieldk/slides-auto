@@ -15,8 +15,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 
-import { Button } from "@workspace/ui/components/button"
-import { cn } from "@workspace/ui/lib/utils"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { CompositionDialog } from "@/components/composition-dialog"
 import type { CompositionResult } from "@/lib/composition"
 import {

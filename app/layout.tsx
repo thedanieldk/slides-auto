@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
-import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@/lib/utils"
+
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Slides Auto",
