@@ -13,8 +13,8 @@ The app runs at [http://localhost:3000](http://localhost:3000) by default.
 
 ## AI generation
 
-Copy `.env.example` to `.env.local`, add your Anthropic API key, and restart
-the development server:
+Create `.env.local`, add your Anthropic API key, and restart the development
+server:
 
 ```bash
 ANTHROPIC_API_KEY=your_key_here
