@@ -17,6 +17,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
+import { CompositionDialog } from "@/components/composition-dialog"
+import type { CompositionResult } from "@/lib/composition"
 import {
   createProject,
   createSlide,
@@ -46,6 +48,7 @@ export function SlideshowStudio() {
     "saved"
   )
   const [notice, setNotice] = useState<string | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -197,6 +200,23 @@ export function SlideshowStudio() {
     updateProject((current) => ({ ...current, themeId }))
   }
 
+  function applyComposition(result: CompositionResult) {
+    const shouldReplace = window.confirm(
+      `Replace the current slideshow with ${result.slides.length} composed slides?`
+    )
+    if (!shouldReplace) return
+
+    updateProject((current) => ({
+      ...current,
+      title:
+        current.title === "Untitled slideshow" ? result.title : current.title,
+      slides: result.slides,
+      activeSlideId: result.slides[0]!.id,
+    }))
+    setComposerOpen(false)
+    setNotice(`${result.slides.length} editable slides composed.`)
+  }
+
   function startNewProject() {
     const shouldReplace = window.confirm(
       "Start a new slideshow? This replaces the project saved in this browser."
@@ -279,6 +299,15 @@ export function SlideshowStudio() {
             {saveState === "saved" ? "Saved locally" : null}
             {saveState === "failed" ? "Not saved" : null}
           </div>
+          <Button
+            size="sm"
+            aria-label="Compose slideshow"
+            className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
+            onClick={() => setComposerOpen(true)}
+          >
+            <Sparkles data-icon="inline-start" />
+            <span className="hidden sm:inline">Compose</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={restoreStarter}>
             <RotateCcw data-icon="inline-start" />
             <span className="hidden sm:inline">Starter</span>
@@ -587,6 +616,12 @@ export function SlideshowStudio() {
           </div>
         </aside>
       </div>
+
+      <CompositionDialog
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        onApply={applyComposition}
+      />
     </main>
   )
 }
@@ -616,6 +651,8 @@ function getTextLayerStyle(
     letterSpacing: `${style.letterSpacing}em`,
     textAlign: style.align,
     textShadow: getTextShadow(style),
+    padding: style.padding ? `${style.padding}cqw` : undefined,
+    borderRadius: style.borderRadius ? `${style.borderRadius}cqw` : undefined,
   }
 }
 

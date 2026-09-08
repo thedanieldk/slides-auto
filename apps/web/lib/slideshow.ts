@@ -1,4 +1,5 @@
 export type ThemeId = "paper" | "signal" | "midnight"
+export type SlideLayoutId = "editorial" | "centered" | "caption-card"
 export type TextLayerRole = "hook" | "body" | "custom"
 export type TextAlignment = "left" | "center" | "right"
 export type TextFontFamily = "sans" | "serif" | "mono"
@@ -34,6 +35,10 @@ export type TextLayerStyle = {
   align: TextAlignment
   color: LayerColor
   backgroundColor: string | null
+  /** Inner spacing as a percentage of the slide width. */
+  padding?: number
+  /** Corner radius as a percentage of the slide width. */
+  borderRadius?: number
   shadow: {
     color: string
     x: number
@@ -56,7 +61,10 @@ export type TextLayer = {
 
 export type SlideshowSlide = {
   id: string
+  layoutId: SlideLayoutId
   image: SlideImage | null
+  /** Suggested search phrase for a future image-source integration. */
+  imageQuery: string | null
   textLayers: TextLayer[]
 }
 
@@ -81,11 +89,22 @@ export type SlideshowTheme = {
   wash: string
 }
 
+export type SlideLayout = {
+  id: SlideLayoutId
+  name: string
+  description: string
+}
+
 type LegacySlide = {
   id: string
   headline: string
   body: string
   image: SlideImage | null
+}
+
+type LayerPreset = {
+  rect: LayerRect
+  style: Partial<TextLayerStyle>
 }
 
 type LegacyProject = {
@@ -96,6 +115,15 @@ type LegacyProject = {
   activeSlideId: string
   slides: LegacySlide[]
   updatedAt: string
+}
+
+type StoredSlideV2 = Omit<SlideshowSlide, "layoutId" | "imageQuery"> & {
+  layoutId?: SlideLayoutId
+  imageQuery?: string | null
+}
+
+type StoredProjectV2 = Omit<SlideshowProject, "slides"> & {
+  slides: StoredSlideV2[]
 }
 
 export const slideshowThemes = [
@@ -158,6 +186,73 @@ const bodyStyle: TextLayerStyle = {
   shadow: null,
 }
 
+export const slideLayouts = [
+  {
+    id: "editorial",
+    name: "Editorial stack",
+    description: "Strong hook with supporting copy below",
+  },
+  {
+    id: "centered",
+    name: "Centered statement",
+    description: "Balanced, spacious, and direct",
+  },
+  {
+    id: "caption-card",
+    name: "Caption card",
+    description: "Readable text card over photography",
+  },
+] as const satisfies readonly SlideLayout[]
+
+const layoutPresets: Record<
+  SlideLayoutId,
+  { hook: LayerPreset; body: LayerPreset }
+> = {
+  editorial: {
+    hook: {
+      rect: { x: 9, y: 58, width: 82, height: 21 },
+      style: {},
+    },
+    body: {
+      rect: { x: 9, y: 81, width: 76, height: 11 },
+      style: {},
+    },
+  },
+  centered: {
+    hook: {
+      rect: { x: 10, y: 33, width: 80, height: 28 },
+      style: {
+        fontSize: 9.2,
+        lineHeight: 1.06,
+        letterSpacing: -0.045,
+        align: "center",
+      },
+    },
+    body: {
+      rect: { x: 18, y: 64, width: 64, height: 14 },
+      style: { fontSize: 3.6, lineHeight: 1.55, align: "center" },
+    },
+  },
+  "caption-card": {
+    hook: {
+      rect: { x: 6, y: 62, width: 88, height: 19 },
+      style: {
+        fontSize: 7.4,
+        lineHeight: 1.1,
+        letterSpacing: -0.035,
+        color: { type: "custom", value: "#20212a" },
+        backgroundColor: "rgba(255, 252, 247, 0.92)",
+        padding: 3,
+        borderRadius: 3,
+      },
+    },
+    body: {
+      rect: { x: 9, y: 84, width: 76, height: 9 },
+      style: { fontSize: 3.4, lineHeight: 1.45 },
+    },
+  },
+}
+
 function makeId() {
   return crypto.randomUUID()
 }
@@ -165,9 +260,12 @@ function makeId() {
 function createTextLayer(
   id: string,
   role: "hook" | "body",
-  text: string
+  text: string,
+  layoutId: SlideLayoutId
 ): TextLayer {
   const isHook = role === "hook"
+  const preset = layoutPresets[layoutId][role]
+  const baseStyle = isHook ? hookStyle : bodyStyle
 
   return {
     id,
@@ -175,10 +273,8 @@ function createTextLayer(
     role,
     name: isHook ? "Hook" : "Body",
     text,
-    rect: isHook
-      ? { x: 9, y: 58, width: 82, height: 21 }
-      : { x: 9, y: 81, width: 76, height: 11 },
-    style: structuredClone(isHook ? hookStyle : bodyStyle),
+    rect: structuredClone(preset.rect),
+    style: { ...structuredClone(baseStyle), ...structuredClone(preset.style) },
     visible: true,
     locked: false,
   }
@@ -187,11 +283,12 @@ function createTextLayer(
 function createTextLayers(
   slideId: string,
   headline: string,
-  body: string
+  body: string,
+  layoutId: SlideLayoutId = "editorial"
 ): TextLayer[] {
   return [
-    createTextLayer(`${slideId}-hook`, "hook", headline),
-    createTextLayer(`${slideId}-body`, "body", body),
+    createTextLayer(`${slideId}-hook`, "hook", headline, layoutId),
+    createTextLayer(`${slideId}-body`, "body", body, layoutId),
   ]
 }
 
@@ -200,7 +297,13 @@ function createStarterSlide(
   headline: string,
   body: string
 ): SlideshowSlide {
-  return { id, image: null, textLayers: createTextLayers(id, headline, body) }
+  return {
+    id,
+    layoutId: "editorial",
+    image: null,
+    imageQuery: null,
+    textLayers: createTextLayers(id, headline, body),
+  }
 }
 
 const starterSlides: SlideshowSlide[] = [
@@ -231,15 +334,21 @@ export const starterProject: SlideshowProject = {
   updatedAt: "2026-09-08T00:00:00.000Z",
 }
 
-export function createSlide(index: number): SlideshowSlide {
+export function createSlide(
+  index: number,
+  layoutId: SlideLayoutId = "editorial"
+): SlideshowSlide {
   const id = makeId()
   return {
     id,
+    layoutId,
     image: null,
+    imageQuery: null,
     textLayers: createTextLayers(
       id,
       `Slide ${index}`,
-      "Add one clear thought for this frame."
+      "Add one clear thought for this frame.",
+      layoutId
     ),
   }
 }
@@ -262,6 +371,30 @@ export function getTextLayer(slide: SlideshowSlide, role: "hook" | "body") {
   return slide.textLayers.find((layer) => layer.role === role)
 }
 
+export function applySlideLayout(
+  slide: SlideshowSlide,
+  layoutId: SlideLayoutId
+): SlideshowSlide {
+  return {
+    ...slide,
+    layoutId,
+    textLayers: slide.textLayers.map((layer) => {
+      if (layer.role !== "hook" && layer.role !== "body") return layer
+      const preset = layoutPresets[layoutId][layer.role]
+      const baseStyle = layer.role === "hook" ? hookStyle : bodyStyle
+
+      return {
+        ...layer,
+        rect: structuredClone(preset.rect),
+        style: {
+          ...structuredClone(baseStyle),
+          ...structuredClone(preset.style),
+        },
+      }
+    }),
+  }
+}
+
 export function resolveLayerColor(color: LayerColor, theme: SlideshowTheme) {
   if (color.type === "custom") return color.value
   return theme[color.token]
@@ -274,7 +407,16 @@ export function getTextShadow(style: TextLayerStyle) {
 }
 
 export function loadSlideshowProject(value: unknown): SlideshowProject | null {
-  if (isProjectV2(value)) return value
+  if (isProjectV2(value)) {
+    return {
+      ...value,
+      slides: value.slides.map((slide) => ({
+        ...slide,
+        layoutId: slide.layoutId ?? "editorial",
+        imageQuery: slide.imageQuery ?? null,
+      })),
+    }
+  }
   if (!isLegacyProject(value)) return null
 
   return {
@@ -282,23 +424,30 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
     version: 2,
     slides: value.slides.map((slide) => ({
       id: slide.id,
+      layoutId: "editorial",
       image: slide.image,
+      imageQuery: null,
       textLayers: createTextLayers(slide.id, slide.headline, slide.body),
     })),
     updatedAt: new Date().toISOString(),
   }
 }
 
-function isProjectV2(value: unknown): value is SlideshowProject {
+function isProjectV2(value: unknown): value is StoredProjectV2 {
   if (!isProjectBase(value) || value.version !== 2) return false
 
   return value.slides.every(
     (slide) =>
       isRecord(slide) &&
       typeof slide.id === "string" &&
+      (slide.layoutId === undefined || isSlideLayoutId(slide.layoutId)) &&
       Array.isArray(slide.textLayers) &&
       slide.textLayers.every(isTextLayer)
   )
+}
+
+function isSlideLayoutId(value: unknown): value is SlideLayoutId {
+  return slideLayouts.some((layout) => layout.id === value)
 }
 
 function isLegacyProject(value: unknown): value is LegacyProject {
