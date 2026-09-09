@@ -28,7 +28,7 @@ import {
   type GeneratedConcept,
 } from "@/lib/ai/slideshow-generation"
 import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
-import { getTextLayer, slideLayouts, type SlideLayoutId } from "@/lib/slideshow"
+import { getTextLayer, textStyles, type TextStyleId } from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
 type CompositionDialogProps = {
@@ -55,7 +55,7 @@ export function CompositionDialog({
     number | null
   >(null)
   const [slideCount, setSlideCount] = useState(5)
-  const [layoutId, setLayoutId] = useState<SlideLayoutId>("editorial")
+  const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
   const [generationStage, setGenerationStage] = useState<
     "concepts" | "slides" | null
@@ -136,7 +136,7 @@ export function CompositionDialog({
           mode: "slideshow",
           concept,
           slideCount,
-          layoutId,
+          layoutId: textStyleId,
           product: toProductDraft(selectedProduct),
         }),
       })
@@ -156,7 +156,15 @@ export function CompositionDialog({
         throw new Error("Claude returned an incomplete slideshow. Try again.")
       }
 
-      setResult(composeGeneratedSlideshow(generated.data))
+      setResult(
+        composeGeneratedSlideshow({
+          ...generated.data,
+          slides: generated.data.slides.map((slide) => ({
+            ...slide,
+            layoutId: textStyleId,
+          })),
+        })
+      )
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -170,7 +178,7 @@ export function CompositionDialog({
 
   function buildScriptPreview() {
     if (script.trim().length < 12) return
-    setResult(composeScript({ script, slideCount, layoutId }))
+    setResult(composeScript({ script, slideCount, layoutId: textStyleId }))
   }
 
   function updateScript(value: string) {
@@ -179,8 +187,8 @@ export function CompositionDialog({
     setError(null)
   }
 
-  function updateLayout(value: SlideLayoutId) {
-    setLayoutId(value)
+  function updateTextStyle(value: TextStyleId) {
+    setTextStyleId(value)
     setResult(null)
     setError(null)
   }
@@ -387,27 +395,27 @@ export function CompositionDialog({
 
                 <fieldset>
                   <legend className="mb-3 text-xs font-semibold text-black/60">
-                    Layout template
+                    Text style
                   </legend>
                   <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                    {slideLayouts.map((layout) => (
+                    {textStyles.map((textStyle) => (
                       <button
-                        key={layout.id}
+                        key={textStyle.id}
                         type="button"
-                        onClick={() => updateLayout(layout.id)}
+                        onClick={() => updateTextStyle(textStyle.id)}
                         className={cn(
                           "rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                          layout.id === layoutId
+                          textStyle.id === textStyleId
                             ? "border-[#4758c7] bg-[#eef0ff]"
                             : "border-black/10 bg-white hover:border-black/20"
                         )}
                       >
-                        <LayoutMiniature layoutId={layout.id} />
+                        <TextStyleMiniature textStyleId={textStyle.id} />
                         <span className="mt-2 block text-[11px] font-semibold">
-                          {layout.name}
+                          {textStyle.name}
                         </span>
                         <span className="mt-0.5 block text-[10px] leading-snug text-black/40">
-                          {layout.description}
+                          {textStyle.description}
                         </span>
                       </button>
                     ))}
@@ -717,24 +725,29 @@ function FormatMarker({
   )
 }
 
-function LayoutMiniature({ layoutId }: { layoutId: SlideLayoutId }) {
+function TextStyleMiniature({ textStyleId }: { textStyleId: TextStyleId }) {
   return (
-    <span className="relative block aspect-[9/6] overflow-hidden rounded-lg bg-gradient-to-br from-[#e8dfd0] to-[#a99c90] ring-1 ring-black/8">
+    <span className="relative block aspect-[9/6] overflow-hidden rounded-lg bg-[linear-gradient(145deg,#8e8478,#3f453d)] ring-1 ring-black/8">
       <span
         className={cn(
-          "absolute block bg-[#292821]",
-          layoutId === "editorial" && "right-[12%] bottom-[27%] left-[12%] h-2",
-          layoutId === "centered" && "top-[34%] right-[18%] left-[18%] h-2",
-          layoutId === "caption-card" &&
-            "right-[8%] bottom-[18%] left-[8%] h-5 rounded bg-white/90"
+          "absolute block",
+          textStyleId === "clean-white" &&
+            "top-[30%] right-[16%] left-[16%] h-1.5 bg-white",
+          textStyleId === "soft-yellow" &&
+            "top-[24%] right-[38%] left-[9%] h-1 bg-[#fff58f]",
+          textStyleId === "label-body" &&
+            "top-[22%] right-[13%] left-[13%] h-4 rounded bg-white"
         )}
       />
       <span
         className={cn(
-          "absolute block h-1 bg-[#292821]/45",
-          layoutId === "editorial" && "right-[28%] bottom-[17%] left-[12%]",
-          layoutId === "centered" && "top-[58%] right-[28%] left-[28%]",
-          layoutId === "caption-card" && "right-[30%] bottom-[9%] left-[11%]"
+          "absolute block h-1",
+          textStyleId === "clean-white" &&
+            "top-[45%] right-[26%] left-[26%] bg-white/80",
+          textStyleId === "soft-yellow" &&
+            "top-[38%] right-[28%] left-[9%] bg-[#fff58f]/80",
+          textStyleId === "label-body" &&
+            "top-[55%] right-[24%] left-[24%] bg-white/85"
         )}
       />
     </span>

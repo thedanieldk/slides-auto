@@ -6,10 +6,12 @@ import {
   Check,
   Copy,
   ImagePlus,
+  Images,
   Layers3,
   LoaderCircle,
   Plus,
   RotateCcw,
+  Search,
   Sparkles,
   Trash2,
 } from "lucide-react"
@@ -19,9 +21,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CompositionDialog } from "@/components/composition-dialog"
+import { ImageSearchDialog } from "@/components/image-search-dialog"
 import { applyGeneratedCopy, type CompositionResult } from "@/lib/composition"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
+import { searchImages } from "@/lib/images/search-images"
+import type { ImageSearchResult } from "@/lib/images/image-provider"
 import {
+  applySlideLayout,
   createProject,
   createSlide,
   getTextLayer,
@@ -30,10 +36,13 @@ import {
   resolveLayerColor,
   slideshowThemes,
   starterProject,
+  textStyles,
+  type SlideImage,
   type SlideshowProject,
   type SlideshowSlide,
   type SlideshowTheme,
   type TextLayer,
+  type TextStyleId,
   type ThemeId,
 } from "@/lib/slideshow"
 
@@ -51,6 +60,8 @@ export function SlideshowStudio() {
   )
   const [notice, setNotice] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
+  const [imageSearchOpen, setImageSearchOpen] = useState(false)
+  const [isAutoFillingImages, setIsAutoFillingImages] = useState(false)
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(
     null
   )
@@ -205,6 +216,22 @@ export function SlideshowStudio() {
     updateProject((current) => ({ ...current, themeId }))
   }
 
+  function selectTextStyle(textStyleId: TextStyleId, applyToAll = false) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        applyToAll || slide.id === current.activeSlideId
+          ? applySlideLayout(slide, textStyleId)
+          : slide
+      ),
+    }))
+    setNotice(
+      applyToAll
+        ? `Text style applied to all ${project.slides.length} slides.`
+        : `Text style applied to slide ${activeIndex + 1}.`
+    )
+  }
+
   function applyComposition(result: CompositionResult) {
     const shouldReplace = window.confirm(
       `Replace the current slideshow with ${result.slides.length} composed slides?`
@@ -333,6 +360,74 @@ export function SlideshowStudio() {
     reader.readAsDataURL(file)
   }
 
+  async function autoFillMissingImages() {
+    const targets = project.slides.flatMap((slide) => {
+      const query = getSlideImageQuery(slide)
+      return !slide.image && query.length >= 2 ? [{ slide, query }] : []
+    })
+
+    if (targets.length === 0) {
+      setNotice("Every slide already has an image or needs an image query.")
+      return
+    }
+
+    setIsAutoFillingImages(true)
+    setNotice(null)
+    try {
+      const searches = await Promise.allSettled(
+        targets.map(async ({ slide, query }) => ({
+          slideId: slide.id,
+          results: await searchImages(query),
+        }))
+      )
+      const usedImageIds = new Set(
+        project.slides.flatMap((slide) =>
+          slide.image?.id.startsWith("pexels-") ? [slide.image.id] : []
+        )
+      )
+      const selectedImages = new Map<string, SlideImage>()
+      let failedSearches = 0
+
+      for (const search of searches) {
+        if (search.status === "rejected") {
+          failedSearches += 1
+          continue
+        }
+
+        const result =
+          search.value.results.find(
+            (candidate) => !usedImageIds.has(`pexels-${candidate.id}`)
+          ) ?? search.value.results[0]
+        if (!result) {
+          failedSearches += 1
+          continue
+        }
+
+        const image = toSlideImage(result)
+        usedImageIds.add(image.id)
+        selectedImages.set(search.value.slideId, image)
+      }
+
+      if (selectedImages.size > 0) {
+        updateProject((current) => ({
+          ...current,
+          slides: current.slides.map((slide) => ({
+            ...slide,
+            image: selectedImages.get(slide.id) ?? slide.image,
+          })),
+        }))
+      }
+
+      setNotice(
+        selectedImages.size === 0
+          ? "No matching photos were found. Try changing a slide image query."
+          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${failedSearches ? `; ${failedSearches} could not be matched` : ""}.`
+      )
+    } finally {
+      setIsAutoFillingImages(false)
+    }
+  }
+
   return (
     <main className="min-h-svh bg-[#e9e7e2] text-[#1b1c24]">
       <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b border-black/10 bg-[#f8f7f4]/95 px-4 py-3 backdrop-blur md:px-6">
@@ -450,7 +545,10 @@ export function SlideshowStudio() {
                     </span>
                     <span
                       className="relative block aspect-[9/12] overflow-hidden rounded-lg"
-                      style={{ background: activeTheme.background }}
+                      style={{
+                        background: activeTheme.background,
+                        containerType: "inline-size",
+                      }}
                     >
                       {slide.image && (
                         <span
@@ -461,11 +559,23 @@ export function SlideshowStudio() {
                         />
                       )}
                       <span
-                        className="absolute inset-x-2 bottom-2 line-clamp-3 text-[8px] leading-tight font-semibold"
-                        style={{ color: activeTheme.foreground }}
-                      >
-                        {getTextLayer(slide, "hook")?.text ?? "Untitled slide"}
-                      </span>
+                        className="absolute inset-0"
+                        style={{ background: activeTheme.wash }}
+                      />
+                      {slide.textLayers.map(
+                        (layer) =>
+                          layer.visible && (
+                            <span
+                              key={layer.id}
+                              className="absolute z-10 overflow-hidden text-pretty"
+                              style={getTextLayerStyle(layer, activeTheme)}
+                            >
+                              <span style={getTextLayerContentStyle(layer)}>
+                                {layer.text}
+                              </span>
+                            </span>
+                          )
+                      )}
                     </span>
                   </button>
 
@@ -552,7 +662,9 @@ export function SlideshowStudio() {
                       data-layer-role={layer.role}
                       style={getTextLayerStyle(layer, activeTheme)}
                     >
-                      {layer.text || `Add ${layer.name.toLowerCase()} text`}
+                      <span style={getTextLayerContentStyle(layer)}>
+                        {layer.text || `Add ${layer.name.toLowerCase()} text`}
+                      </span>
                     </div>
                   )
               )}
@@ -634,6 +746,57 @@ export function SlideshowStudio() {
             </div>
           </fieldset>
 
+          <fieldset className="mb-6">
+            <legend className="mb-3 text-xs font-semibold text-black/60">
+              Text style
+            </legend>
+            <div className="space-y-2">
+              {textStyles.map((textStyle) => (
+                <button
+                  key={textStyle.id}
+                  type="button"
+                  onClick={() => selectTextStyle(textStyle.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                    textStyle.id === activeSlide.layoutId
+                      ? "border-[#4758c7] bg-[#eef0ff]"
+                      : "border-black/10 bg-white hover:border-black/20"
+                  )}
+                >
+                  <TextStyleSwatch textStyleId={textStyle.id} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-semibold">
+                      {textStyle.name}
+                    </span>
+                    <span className="block truncate text-[11px] text-black/45">
+                      {textStyle.description}
+                    </span>
+                  </span>
+                  {textStyle.id === activeSlide.layoutId && (
+                    <Check className="size-4 shrink-0 text-[#4758c7]" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              className="mt-2 w-full"
+              onClick={() => {
+                const activeTextStyle = textStyles.find(
+                  (textStyle) => textStyle.id === activeSlide.layoutId
+                )
+                if (activeTextStyle) selectTextStyle(activeTextStyle.id, true)
+              }}
+              disabled={
+                !textStyles.some(
+                  (textStyle) => textStyle.id === activeSlide.layoutId
+                )
+              }
+            >
+              Apply to every slide
+            </Button>
+          </fieldset>
+
           <div className="mb-6">
             <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
             <input
@@ -646,14 +809,44 @@ export function SlideshowStudio() {
                 event.target.value = ""
               }}
             />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImagePlus data-icon="inline-start" />
-              {activeSlide.image ? "Replace image" : "Upload image"}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
+                onClick={() => setImageSearchOpen(true)}
+              >
+                <Search data-icon="inline-start" />
+                Search Pexels
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => void autoFillMissingImages()}
+                disabled={isAutoFillingImages}
+              >
+                {isAutoFillingImages ? (
+                  <LoaderCircle
+                    data-icon="inline-start"
+                    className="animate-spin"
+                  />
+                ) : (
+                  <Images data-icon="inline-start" />
+                )}
+                Auto-fill missing images
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus data-icon="inline-start" />
+                {activeSlide.image ? "Upload replacement" : "Upload image"}
+              </Button>
+            </div>
+            {activeSlide.imageQuery && (
+              <p className="mt-2 text-[11px] leading-relaxed text-black/45">
+                Suggested search: {activeSlide.imageQuery}
+              </p>
+            )}
             {activeSlide.image && (
               <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
                 <span className="truncate">{activeSlide.image.name}</span>
@@ -710,8 +903,39 @@ export function SlideshowStudio() {
         onClose={() => setComposerOpen(false)}
         onApply={applyComposition}
       />
+      <ImageSearchDialog
+        open={imageSearchOpen}
+        initialQuery={getSlideImageQuery(activeSlide)}
+        onClose={() => setImageSearchOpen(false)}
+        onSelect={(image) => {
+          updateActiveSlide({ image })
+          setNotice(`Photo added to slide ${activeIndex + 1}.`)
+        }}
+      />
     </main>
   )
+}
+
+function getSlideImageQuery(slide: SlideshowSlide) {
+  return (
+    slide.imageQuery?.trim() ||
+    getTextLayer(slide, "hook")?.text.trim().slice(0, 100) ||
+    ""
+  )
+}
+
+function toSlideImage(result: ImageSearchResult): SlideImage {
+  return {
+    id: `pexels-${result.id}`,
+    name: result.alt || "Pexels photo",
+    dataUrl: result.imageUrl,
+    source: {
+      provider: "pexels",
+      photographer: result.photographer,
+      photographerUrl: result.photographerUrl,
+      photoUrl: result.photoUrl,
+    },
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -735,7 +959,10 @@ function getTextLayerStyle(
     width: `${rect.width}%`,
     height: `${rect.height}%`,
     color: resolveLayerColor(style.color, theme),
-    backgroundColor: style.backgroundColor ?? undefined,
+    backgroundColor:
+      style.backgroundMode === "line"
+        ? undefined
+        : (style.backgroundColor ?? undefined),
     fontFamily,
     fontSize: `${style.fontSize}cqw`,
     fontWeight: style.fontWeight,
@@ -743,9 +970,57 @@ function getTextLayerStyle(
     letterSpacing: `${style.letterSpacing}em`,
     textAlign: style.align,
     textShadow: getTextShadow(style),
+    padding:
+      style.backgroundMode === "line" || !style.padding
+        ? undefined
+        : `${style.padding}cqw`,
+    borderRadius:
+      style.backgroundMode === "line" || !style.borderRadius
+        ? undefined
+        : `${style.borderRadius}cqw`,
+  }
+}
+
+function getTextLayerContentStyle(layer: TextLayer): CSSProperties | undefined {
+  const { style } = layer
+  if (style.backgroundMode !== "line" || !style.backgroundColor) return
+
+  return {
+    backgroundColor: style.backgroundColor,
     padding: style.padding ? `${style.padding}cqw` : undefined,
     borderRadius: style.borderRadius ? `${style.borderRadius}cqw` : undefined,
+    boxDecorationBreak: "clone",
+    WebkitBoxDecorationBreak: "clone",
   }
+}
+
+function TextStyleSwatch({ textStyleId }: { textStyleId: TextStyleId }) {
+  return (
+    <span className="relative block size-10 shrink-0 overflow-hidden rounded-lg bg-[linear-gradient(145deg,#8e8478,#3f453d)] ring-1 ring-black/10">
+      <span
+        className={cn(
+          "absolute block",
+          textStyleId === "clean-white" &&
+            "top-[30%] right-[15%] left-[15%] h-1 bg-white",
+          textStyleId === "soft-yellow" &&
+            "top-[25%] right-[35%] left-[10%] h-1 bg-[#fff58f]",
+          textStyleId === "label-body" &&
+            "top-[22%] right-[10%] left-[10%] h-2.5 rounded-sm bg-white"
+        )}
+      />
+      <span
+        className={cn(
+          "absolute block h-0.5",
+          textStyleId === "clean-white" &&
+            "top-[48%] right-[25%] left-[25%] bg-white/80",
+          textStyleId === "soft-yellow" &&
+            "top-[43%] right-[20%] left-[10%] bg-[#fff58f]/80",
+          textStyleId === "label-body" &&
+            "top-[58%] right-[20%] left-[20%] bg-white/85"
+        )}
+      />
+    </span>
+  )
 }
 
 function SlideAction({

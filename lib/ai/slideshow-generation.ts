@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import { copyFormatIds } from "@/lib/ai/copy-formats"
 import { productProfileDraftSchema } from "@/lib/products/product-profile"
+import { slideLayoutIds, textStyleIds } from "@/lib/slideshow"
 
 export const conceptCopyFormatIds = [
   "personal-results",
@@ -33,7 +34,7 @@ export const generatedSlideSchema = z.object({
   hook: z.string().trim().min(1).max(120),
   body: z.string().trim().max(180),
   imageQuery: z.string().trim().min(1).max(100),
-  layoutId: z.enum(["editorial", "centered", "caption-card"]),
+  layoutId: z.enum(textStyleIds),
 })
 
 export const generatedSlideshowSchema = z.object({
@@ -45,7 +46,7 @@ export const slideshowGenerationRequestSchema = z.object({
   mode: z.literal("slideshow"),
   concept: generatedConceptSchema,
   slideCount: z.number().int().min(2).max(10),
-  layoutId: z.enum(["editorial", "centered", "caption-card"]),
+  layoutId: z.enum(textStyleIds),
   product: productProfileDraftSchema,
 })
 
@@ -64,7 +65,7 @@ export const slideRewriteRequestSchema = z.object({
   currentBody: z.string().trim().max(180),
   previousHook: z.string().trim().max(120).nullable(),
   nextHook: z.string().trim().max(120).nullable(),
-  layoutId: z.enum(["editorial", "centered", "caption-card"]),
+  layoutId: z.enum(slideLayoutIds),
 })
 
 export const generationRequestSchema = z.discriminatedUnion("mode", [
@@ -89,11 +90,12 @@ const slideProperties = {
   },
   imageQuery: {
     type: "string",
-    description: "Two to six concrete visual search terms.",
+    description:
+      "Three to seven concrete terms describing a candid, portrait-friendly photograph with a visible subject, action, or setting.",
   },
   layoutId: {
     type: "string",
-    enum: ["editorial", "centered", "caption-card"],
+    enum: textStyleIds,
   },
 } as const
 

@@ -1,5 +1,20 @@
 export type ThemeId = "paper" | "signal" | "midnight"
-export type SlideLayoutId = "editorial" | "centered" | "caption-card"
+export const textStyleIds = [
+  "clean-white",
+  "soft-yellow",
+  "label-body",
+] as const
+export type TextStyleId = (typeof textStyleIds)[number]
+export const legacySlideLayoutIds = [
+  "editorial",
+  "centered",
+  "caption-card",
+] as const
+export const slideLayoutIds = [
+  ...textStyleIds,
+  ...legacySlideLayoutIds,
+] as const
+export type SlideLayoutId = (typeof slideLayoutIds)[number]
 export type TextLayerRole = "hook" | "body" | "custom"
 export type TextAlignment = "left" | "center" | "right"
 export type TextFontFamily = "sans" | "serif" | "mono"
@@ -8,6 +23,12 @@ export type SlideImage = {
   id: string
   name: string
   dataUrl: string
+  source?: {
+    provider: "pexels"
+    photographer: string
+    photographerUrl: string
+    photoUrl: string
+  }
 }
 
 export type LayerRect = {
@@ -35,6 +56,8 @@ export type TextLayerStyle = {
   align: TextAlignment
   color: LayerColor
   backgroundColor: string | null
+  /** Whether the background fills the layer or hugs each line of text. */
+  backgroundMode?: "block" | "line"
   /** Inner spacing as a percentage of the slide width. */
   padding?: number
   /** Corner radius as a percentage of the slide width. */
@@ -186,7 +209,25 @@ const bodyStyle: TextLayerStyle = {
   shadow: null,
 }
 
-export const slideLayouts = [
+export const textStyles = [
+  {
+    id: "clean-white",
+    name: "Clean white",
+    description: "Large white type centered over the image",
+  },
+  {
+    id: "soft-yellow",
+    name: "Soft yellow",
+    description: "Smaller warm text with an easy left edge",
+  },
+  {
+    id: "label-body",
+    name: "Label + body",
+    description: "White headline label with open body copy",
+  },
+] as const satisfies readonly (SlideLayout & { id: TextStyleId })[]
+
+const legacySlideLayouts = [
   {
     id: "editorial",
     name: "Editorial stack",
@@ -204,10 +245,96 @@ export const slideLayouts = [
   },
 ] as const satisfies readonly SlideLayout[]
 
+export const slideLayouts = [...textStyles, ...legacySlideLayouts] as const
+
 const layoutPresets: Record<
   SlideLayoutId,
   { hook: LayerPreset; body: LayerPreset }
 > = {
+  "clean-white": {
+    hook: {
+      rect: { x: 10, y: 20, width: 80, height: 25 },
+      style: {
+        fontSize: 7.8,
+        fontWeight: 500,
+        lineHeight: 1.14,
+        letterSpacing: -0.035,
+        align: "center",
+        color: { type: "custom", value: "#ffffff" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.42)", x: 0, y: 1, blur: 4 },
+      },
+    },
+    body: {
+      rect: { x: 12, y: 49, width: 76, height: 28 },
+      style: {
+        fontSize: 5.1,
+        fontWeight: 400,
+        lineHeight: 1.34,
+        align: "center",
+        color: { type: "custom", value: "#ffffff" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.42)", x: 0, y: 1, blur: 4 },
+      },
+    },
+  },
+  "soft-yellow": {
+    hook: {
+      rect: { x: 7, y: 22, width: 62, height: 15 },
+      style: {
+        fontSize: 5.5,
+        fontWeight: 500,
+        lineHeight: 1.18,
+        letterSpacing: -0.025,
+        align: "left",
+        color: { type: "custom", value: "#fff58f" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.38)", x: 0, y: 1, blur: 3 },
+      },
+    },
+    body: {
+      rect: { x: 7, y: 39, width: 64, height: 34 },
+      style: {
+        fontSize: 4.6,
+        fontWeight: 400,
+        lineHeight: 1.34,
+        align: "left",
+        color: { type: "custom", value: "#fff58f" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.38)", x: 0, y: 1, blur: 3 },
+      },
+    },
+  },
+  "label-body": {
+    hook: {
+      rect: { x: 12, y: 18, width: 76, height: 18 },
+      style: {
+        fontSize: 5.5,
+        fontWeight: 600,
+        lineHeight: 1.26,
+        letterSpacing: -0.025,
+        align: "center",
+        color: { type: "custom", value: "#101114" },
+        backgroundColor: "rgba(255,255,255,.96)",
+        backgroundMode: "line",
+        padding: 1.2,
+        borderRadius: 1.4,
+        shadow: null,
+      },
+    },
+    body: {
+      rect: { x: 13, y: 39, width: 74, height: 34 },
+      style: {
+        fontSize: 5,
+        fontWeight: 400,
+        lineHeight: 1.38,
+        align: "center",
+        color: { type: "custom", value: "#ffffff" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.45)", x: 0, y: 1, blur: 4 },
+      },
+    },
+  },
   editorial: {
     hook: {
       rect: { x: 9, y: 58, width: 82, height: 21 },
@@ -284,7 +411,7 @@ function createTextLayers(
   slideId: string,
   headline: string,
   body: string,
-  layoutId: SlideLayoutId = "editorial"
+  layoutId: SlideLayoutId = "clean-white"
 ): TextLayer[] {
   return [
     createTextLayer(`${slideId}-hook`, "hook", headline, layoutId),
@@ -299,7 +426,7 @@ function createStarterSlide(
 ): SlideshowSlide {
   return {
     id,
-    layoutId: "editorial",
+    layoutId: "clean-white",
     image: null,
     imageQuery: null,
     textLayers: createTextLayers(id, headline, body),
@@ -336,7 +463,7 @@ export const starterProject: SlideshowProject = {
 
 export function createSlide(
   index: number,
-  layoutId: SlideLayoutId = "editorial"
+  layoutId: SlideLayoutId = "clean-white"
 ): SlideshowSlide {
   const id = makeId()
   return {
@@ -412,7 +539,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
       ...value,
       slides: value.slides.map((slide) => ({
         ...slide,
-        layoutId: slide.layoutId ?? "editorial",
+        layoutId: slide.layoutId ?? "clean-white",
         imageQuery: slide.imageQuery ?? null,
       })),
     }
@@ -424,7 +551,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
     version: 2,
     slides: value.slides.map((slide) => ({
       id: slide.id,
-      layoutId: "editorial",
+      layoutId: "clean-white",
       image: slide.image,
       imageQuery: null,
       textLayers: createTextLayers(slide.id, slide.headline, slide.body),
@@ -447,7 +574,7 @@ function isProjectV2(value: unknown): value is StoredProjectV2 {
 }
 
 function isSlideLayoutId(value: unknown): value is SlideLayoutId {
-  return slideLayouts.some((layout) => layout.id === value)
+  return slideLayoutIds.some((layoutId) => layoutId === value)
 }
 
 function isLegacyProject(value: unknown): value is LegacyProject {

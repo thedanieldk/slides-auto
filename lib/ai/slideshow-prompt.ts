@@ -53,7 +53,7 @@ ${getCopyFormatInstructions(request.concept.copyFormatId)}
 
 ${createProductContext(request.product)}
 
-Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. Give every slide a concrete image search query with two to six visual words. Use “${request.layoutId}” as the default layout, but choose another available layout when it fits a specific slide better.
+Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. Give every slide a distinct image search query of three to seven concrete terms describing a candid, portrait-friendly photograph. Name a visible subject, action, or setting. Avoid product names and abstract ideas. Use the “${request.layoutId}” text style on every slide so the carousel feels consistent.
 
 <selected_concept>
 Hook: ${request.concept.hook}
@@ -70,7 +70,13 @@ Current hook: ${request.currentHook || "No hook yet."}
 Current body: ${request.currentBody || "No body text yet."}
 Next hook: ${request.nextHook ?? "This is the last slide."}
 
-Keep the hook under 120 characters and the body under 180 characters. Return one concrete image search query with two to six visual words. Prefer the “${request.layoutId}” layout unless another available layout is clearly better.`
+Keep the hook under 120 characters and the body under 180 characters. Return one image search query of three to seven concrete terms describing a candid, portrait-friendly photograph. Name a visible subject, action, or setting. Avoid product names and abstract ideas. Keep the “${normalizeTextStyleId(request.layoutId)}” text style.`
+}
+
+function normalizeTextStyleId(layoutId: string) {
+  return layoutId === "soft-yellow" || layoutId === "label-body"
+    ? layoutId
+    : "clean-white"
 }
 
 function createProductContext(

@@ -13,15 +13,17 @@ The app runs at [http://localhost:3000](http://localhost:3000) by default.
 
 ## AI generation
 
-Create `.env.local`, add your Anthropic API key, and restart the development
-server:
+Create `.env.local`, add your API keys, and restart the development server:
 
 ```bash
 ANTHROPIC_API_KEY=your_key_here
+PEXELS_API_KEY=your_key_here
 ```
 
-The key is read only by the server route and is never sent to the browser.
+The keys are read only by server routes and are never sent to the browser.
 `ANTHROPIC_MODEL` is optional; the default is Claude Haiku 4.5.
+`PEXELS_API_KEY` powers photo search and automatic image filling in the slide
+editor.
 
 The AI composer uses Claude Web Fetch to create a lightweight product profile
 from a public product page. Profiles are reviewed by the user and stored only
