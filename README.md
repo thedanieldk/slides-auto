@@ -25,7 +25,9 @@ The key is read only by the server route and is never sent to the browser.
 
 The AI composer uses Claude Web Fetch to create a lightweight product profile
 from a public product page. Profiles are reviewed by the user and stored only
-in that browser for reuse in later slideshow generations.
+in that browser for reuse in later slideshow generations. Claude then proposes
+three content directions from the selected profile; choose one to generate the
+editable slideshow.
 
 ## Project structure
 
