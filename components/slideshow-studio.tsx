@@ -37,6 +37,7 @@ import {
   getTextShadow,
   loadSlideshowProject,
   resolveLayerColor,
+  resolveCarouselTextStyle,
   slideshowThemes,
   starterProject,
   textStyles,
@@ -122,6 +123,18 @@ export function SlideshowStudio() {
     slideshowThemes[0]
   const hookLayer = getTextLayer(activeSlide, "hook")
   const bodyLayer = getTextLayer(activeSlide, "body")
+
+  function isTextStyleActive(textStyleId: TextStyleId) {
+    if (textStyleId !== "yellow-cover") {
+      return activeSlide.layoutId === textStyleId
+    }
+
+    return project.slides.every((slide, index) =>
+      index === 0
+        ? slide.layoutId === "yellow-cover"
+        : slide.layoutId === "yellow-continuation"
+    )
+  }
 
   function updateProject(
     updater: (current: SlideshowProject) => SlideshowProject
@@ -215,16 +228,23 @@ export function SlideshowStudio() {
   }
 
   function selectTextStyle(textStyleId: TextStyleId, applyToAll = false) {
+    const applyAcrossCarousel = applyToAll || textStyleId === "yellow-cover"
+
     updateProject((current) => ({
       ...current,
-      slides: current.slides.map((slide) =>
-        applyToAll || slide.id === current.activeSlideId
-          ? applySlideLayout(slide, textStyleId)
-          : slide
-      ),
+      slides: current.slides.map((slide, index) => {
+        if (!applyAcrossCarousel && slide.id !== current.activeSlideId) {
+          return slide
+        }
+
+        const resolvedStyle = applyAcrossCarousel
+          ? resolveCarouselTextStyle(textStyleId, index)
+          : textStyleId
+        return applySlideLayout(slide, resolvedStyle)
+      }),
     }))
     setNotice(
-      applyToAll
+      applyAcrossCarousel
         ? `Text style applied to all ${project.slides.length} slides.`
         : `Text style applied to slide ${activeIndex + 1}.`
     )
@@ -701,7 +721,7 @@ export function SlideshowStudio() {
                   onClick={() => selectTextStyle(textStyle.id)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                    textStyle.id === activeSlide.layoutId
+                    isTextStyleActive(textStyle.id)
                       ? "border-[#4758c7] bg-[#eef0ff]"
                       : "border-black/10 bg-white hover:border-black/20"
                   )}
@@ -715,7 +735,7 @@ export function SlideshowStudio() {
                       {textStyle.description}
                     </span>
                   </span>
-                  {textStyle.id === activeSlide.layoutId && (
+                  {isTextStyleActive(textStyle.id) && (
                     <Check className="size-4 shrink-0 text-[#4758c7]" />
                   )}
                 </button>
@@ -725,15 +745,13 @@ export function SlideshowStudio() {
               variant="outline"
               className="mt-2 w-full"
               onClick={() => {
-                const activeTextStyle = textStyles.find(
-                  (textStyle) => textStyle.id === activeSlide.layoutId
+                const activeTextStyle = textStyles.find((textStyle) =>
+                  isTextStyleActive(textStyle.id)
                 )
                 if (activeTextStyle) selectTextStyle(activeTextStyle.id, true)
               }}
               disabled={
-                !textStyles.some(
-                  (textStyle) => textStyle.id === activeSlide.layoutId
-                )
+                !textStyles.some((textStyle) => isTextStyleActive(textStyle.id))
               }
             >
               Apply to every slide
@@ -887,6 +905,7 @@ function getTextLayerStyle(
   const fontFamily = {
     sans: "var(--font-sans)",
     casual: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+    handwritten: "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive",
     serif: "Georgia, 'Times New Roman', serif",
     mono: "var(--font-mono)",
   }[style.fontFamily]
@@ -907,6 +926,7 @@ function getTextLayerStyle(
     lineHeight: style.lineHeight,
     letterSpacing: `${style.letterSpacing}em`,
     textAlign: style.align,
+    textTransform: style.textTransform,
     textShadow: getTextShadow(style),
     padding:
       style.backgroundMode === "line" || !style.padding
@@ -942,6 +962,8 @@ function TextStyleSwatch({ textStyleId }: { textStyleId: TextStyleId }) {
             "top-[30%] right-[15%] left-[15%] h-1 bg-white",
           textStyleId === "soft-yellow" &&
             "top-[25%] right-[35%] left-[10%] h-1 bg-[#fff58f]",
+          textStyleId === "yellow-cover" &&
+            "top-[20%] right-[14%] left-[14%] h-3 bg-[#fff58f]",
           textStyleId === "label-body" &&
             "top-[22%] right-[10%] left-[10%] h-2.5 rounded-sm bg-white"
         )}
@@ -953,6 +975,8 @@ function TextStyleSwatch({ textStyleId }: { textStyleId: TextStyleId }) {
             "top-[48%] right-[25%] left-[25%] bg-white/80",
           textStyleId === "soft-yellow" &&
             "top-[43%] right-[20%] left-[10%] bg-[#fff58f]/80",
+          textStyleId === "yellow-cover" &&
+            "top-[60%] right-[30%] left-[30%] bg-white/90",
           textStyleId === "label-body" &&
             "top-[58%] right-[20%] left-[20%] bg-white/85"
         )}

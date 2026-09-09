@@ -35,7 +35,7 @@ export const generatedSlideSchema = z
   .object({
     hook: z.string().trim().min(1),
     body: z.string().trim(),
-    layoutId: z.enum(textStyleIds),
+    layoutId: z.enum(slideLayoutIds),
   })
   .transform((slide) => ({
     ...slide,
@@ -102,7 +102,7 @@ const slideProperties = {
   },
   layoutId: {
     type: "string",
-    enum: textStyleIds,
+    enum: slideLayoutIds,
   },
 } as const
 

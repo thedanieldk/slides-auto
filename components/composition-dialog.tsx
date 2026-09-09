@@ -28,7 +28,12 @@ import {
   type GeneratedConcept,
 } from "@/lib/ai/slideshow-generation"
 import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
-import { getTextLayer, textStyles, type TextStyleId } from "@/lib/slideshow"
+import {
+  getTextLayer,
+  resolveCarouselTextStyle,
+  textStyles,
+  type TextStyleId,
+} from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
 type CompositionDialogProps = {
@@ -159,9 +164,9 @@ export function CompositionDialog({
       setResult(
         composeGeneratedSlideshow({
           ...generated.data,
-          slides: generated.data.slides.map((slide) => ({
+          slides: generated.data.slides.map((slide, index) => ({
             ...slide,
-            layoutId: textStyleId,
+            layoutId: resolveCarouselTextStyle(textStyleId, index),
           })),
         })
       )
@@ -397,7 +402,7 @@ export function CompositionDialog({
                   <legend className="mb-3 text-xs font-semibold text-black/60">
                     Text style
                   </legend>
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 xl:grid-cols-2">
                     {textStyles.map((textStyle) => (
                       <button
                         key={textStyle.id}
@@ -735,6 +740,8 @@ function TextStyleMiniature({ textStyleId }: { textStyleId: TextStyleId }) {
             "top-[30%] right-[16%] left-[16%] h-1.5 bg-white",
           textStyleId === "soft-yellow" &&
             "top-[24%] right-[38%] left-[9%] h-1 bg-[#fff58f]",
+          textStyleId === "yellow-cover" &&
+            "top-[24%] right-[12%] left-[12%] h-5 bg-[#fff58f]",
           textStyleId === "label-body" &&
             "top-[22%] right-[13%] left-[13%] h-4 rounded bg-white"
         )}
@@ -746,6 +753,8 @@ function TextStyleMiniature({ textStyleId }: { textStyleId: TextStyleId }) {
             "top-[45%] right-[26%] left-[26%] bg-white/80",
           textStyleId === "soft-yellow" &&
             "top-[38%] right-[28%] left-[9%] bg-[#fff58f]/80",
+          textStyleId === "yellow-cover" &&
+            "top-[62%] right-[32%] left-[32%] bg-white/90",
           textStyleId === "label-body" &&
             "top-[55%] right-[24%] left-[24%] bg-white/85"
         )}

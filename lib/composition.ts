@@ -2,9 +2,10 @@ import {
   applySlideLayout,
   createSlide,
   getTextLayer,
-  type SlideLayoutId,
+  resolveCarouselTextStyle,
   type SlideshowSlide,
   type TextLayer,
+  type TextStyleId,
 } from "@/lib/slideshow"
 import type {
   GeneratedSlide,
@@ -15,7 +16,7 @@ import { DEFAULT_IMAGE_QUERY } from "@/lib/images/image-provider"
 export type CompositionOptions = {
   script: string
   slideCount: number
-  layoutId: SlideLayoutId
+  layoutId: TextStyleId
 }
 
 export type CompositionResult = {
@@ -34,7 +35,10 @@ export function composeScript({
   const groups = groupPieces(pieces, Math.min(requestedCount, pieces.length))
 
   const slides = groups.map((group, index) => {
-    const slide = createSlide(index + 1, layoutId)
+    const slide = createSlide(
+      index + 1,
+      resolveCarouselTextStyle(layoutId, index)
+    )
     const { hook, body } = createSlideCopy(group)
     const textLayers = slide.textLayers.map((layer) => {
       if (layer.role === "hook") return fitTextLayer({ ...layer, text: hook })

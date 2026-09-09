@@ -289,6 +289,9 @@ Text styles define the geometry and typography of the hook and body layers:
 
 - **Clean white:** large white text centered over photography
 - **Soft yellow:** smaller warm text with a left-aligned editorial feel
+- **Yellow cover:** an oversized yellow title with a handwritten subtitle on
+  slide one, followed automatically by subtle centered white continuation
+  slides. Selecting this style updates the full carousel at once.
 - **Label + body:** a white headline label with open supporting text
 
 The Label + body preset uses a familiar system-style sans face with lighter

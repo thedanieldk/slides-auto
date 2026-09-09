@@ -45,6 +45,11 @@ ${createProductContext(request.product)}`
   }
 
   if (request.mode === "slideshow") {
+    const textStyleDirection =
+      request.layoutId === "yellow-cover"
+        ? `Use the “yellow-cover” text style on slide 1 only. Give slide 1 a short, natural subtitle in its body field, ideally under 55 characters. Use the “yellow-continuation” text style on every later slide, with concise copy suited to subtle centered white text.`
+        : `Use the “${request.layoutId}” text style on every slide so the carousel feels consistent.`
+
     return `Create exactly ${request.slideCount} connected slideshow slides from the selected concept below.
 
 The first slide should make someone want to keep reading without sounding clickbait-y. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
@@ -54,7 +59,7 @@ ${getCopyFormatInstructions(request.concept.copyFormatId)}
 
 ${createProductContext(request.product)}
 
-Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. Use the “${request.layoutId}” text style on every slide so the carousel feels consistent.
+Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. ${textStyleDirection}
 
 <selected_concept>
 Hook: ${request.concept.hook}
@@ -75,7 +80,10 @@ Keep the hook under 120 characters and the body under 180 characters. Keep the �
 }
 
 function normalizeTextStyleId(layoutId: string) {
-  return layoutId === "soft-yellow" || layoutId === "label-body"
+  return layoutId === "soft-yellow" ||
+    layoutId === "yellow-cover" ||
+    layoutId === "yellow-continuation" ||
+    layoutId === "label-body"
     ? layoutId
     : "clean-white"
 }

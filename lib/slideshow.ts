@@ -2,6 +2,7 @@ export type ThemeId = "paper" | "signal" | "midnight"
 export const textStyleIds = [
   "clean-white",
   "soft-yellow",
+  "yellow-cover",
   "label-body",
 ] as const
 export type TextStyleId = (typeof textStyleIds)[number]
@@ -10,14 +11,17 @@ export const legacySlideLayoutIds = [
   "centered",
   "caption-card",
 ] as const
+export const internalSlideLayoutIds = ["yellow-continuation"] as const
 export const slideLayoutIds = [
   ...textStyleIds,
+  ...internalSlideLayoutIds,
   ...legacySlideLayoutIds,
 ] as const
 export type SlideLayoutId = (typeof slideLayoutIds)[number]
 export type TextLayerRole = "hook" | "body" | "custom"
 export type TextAlignment = "left" | "center" | "right"
-export type TextFontFamily = "sans" | "casual" | "serif" | "mono"
+export type TextFontFamily =
+  "sans" | "casual" | "handwritten" | "serif" | "mono"
 
 export type SlideImage = {
   id: string
@@ -54,6 +58,7 @@ export type TextLayerStyle = {
   lineHeight: number
   letterSpacing: number
   align: TextAlignment
+  textTransform?: "none" | "uppercase"
   color: LayerColor
   backgroundColor: string | null
   /** Whether the background fills the layer or hugs each line of text. */
@@ -221,11 +226,25 @@ export const textStyles = [
     description: "Smaller warm text with an easy left edge",
   },
   {
+    id: "yellow-cover",
+    name: "Yellow cover",
+    description: "Big yellow opener, then subtle white slides",
+  },
+  {
     id: "label-body",
     name: "Label + body",
     description: "White headline label with open body copy",
   },
 ] as const satisfies readonly (SlideLayout & { id: TextStyleId })[]
+
+export function resolveCarouselTextStyle(
+  textStyleId: TextStyleId,
+  slideIndex: number
+): SlideLayoutId {
+  return textStyleId === "yellow-cover" && slideIndex > 0
+    ? "yellow-continuation"
+    : textStyleId
+}
 
 const legacySlideLayouts = [
   {
@@ -302,6 +321,70 @@ const layoutPresets: Record<
         color: { type: "custom", value: "#fff58f" },
         backgroundColor: null,
         shadow: { color: "rgba(0,0,0,.38)", x: 0, y: 1, blur: 3 },
+      },
+    },
+  },
+  "yellow-cover": {
+    hook: {
+      rect: { x: 7, y: 30, width: 86, height: 38 },
+      style: {
+        fontFamily: "casual",
+        fontSize: 11.8,
+        fontWeight: 700,
+        lineHeight: 0.9,
+        letterSpacing: -0.055,
+        align: "center",
+        textTransform: "uppercase",
+        color: { type: "custom", value: "#fff58f" },
+        backgroundColor: null,
+        shadow: { color: "rgba(43,28,9,.3)", x: 0, y: 1, blur: 3 },
+      },
+    },
+    body: {
+      rect: { x: 12, y: 70, width: 76, height: 13 },
+      style: {
+        fontFamily: "handwritten",
+        fontSize: 5.8,
+        fontWeight: 400,
+        lineHeight: 1.14,
+        letterSpacing: 0.015,
+        align: "center",
+        textTransform: "none",
+        color: { type: "custom", value: "#fffdf2" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.4)", x: 0, y: 1, blur: 3 },
+      },
+    },
+  },
+  "yellow-continuation": {
+    hook: {
+      rect: { x: 10, y: 26, width: 80, height: 20 },
+      style: {
+        fontFamily: "handwritten",
+        fontSize: 6.4,
+        fontWeight: 400,
+        lineHeight: 1.12,
+        letterSpacing: 0.01,
+        align: "center",
+        textTransform: "none",
+        color: { type: "custom", value: "#fffdf2" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.42)", x: 0, y: 1, blur: 3 },
+      },
+    },
+    body: {
+      rect: { x: 13, y: 49, width: 74, height: 30 },
+      style: {
+        fontFamily: "casual",
+        fontSize: 4.7,
+        fontWeight: 400,
+        lineHeight: 1.34,
+        letterSpacing: -0.01,
+        align: "center",
+        textTransform: "none",
+        color: { type: "custom", value: "#ffffff" },
+        backgroundColor: null,
+        shadow: { color: "rgba(0,0,0,.42)", x: 0, y: 1, blur: 3 },
       },
     },
   },
