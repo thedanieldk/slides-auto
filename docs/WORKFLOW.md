@@ -260,7 +260,6 @@ The current studio supports:
 
 - Editing hook and supporting text
 - Rewriting one slide with Claude while providing the previous and next hooks
-- Switching the project theme
 - Choosing a text style for one slide
 - Applying one text style to every slide
 - Adding, duplicating, deleting, and reordering slides
@@ -284,7 +283,7 @@ position controls. The current UI exposes copy editing and complete style
 presets; drag, resize, arbitrary layer creation, and individual font controls
 are still future editor work.
 
-### Text styles and themes
+### Text styles and raw images
 
 Text styles define the geometry and typography of the hook and body layers:
 
@@ -292,8 +291,14 @@ Text styles define the geometry and typography of the hook and body layers:
 - **Soft yellow:** smaller warm text with a left-aligned editorial feel
 - **Label + body:** a white headline label with open supporting text
 
-Themes control the fallback background, foreground colors, muted colors, and
-image wash. Styles can be changed independently from the slide copy.
+The Label + body preset uses a familiar system-style sans face with lighter
+weights and relaxed spacing so it feels closer to casual social-app text than a
+polished brand layout.
+
+The editor currently shows selected photos without a color wash or visual
+filter. Legacy theme data remains in saved projects for compatibility, but the
+theme selector and embedded slide-number labels are not shown. Text styles can
+still be changed independently from the slide copy.
 
 Text is automatically reduced when generated copy is long. This lowers the
 risk of overflowing its assigned layer, but it is still worth visually

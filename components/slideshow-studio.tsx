@@ -46,7 +46,6 @@ import {
   type SlideshowTheme,
   type TextLayer,
   type TextStyleId,
-  type ThemeId,
 } from "@/lib/slideshow"
 
 const STORAGE_KEY = "slides-auto.phase-one-project"
@@ -213,10 +212,6 @@ export function SlideshowStudio() {
       slides.splice(toIndex, 0, movingSlide)
       return { ...current, slides }
     })
-  }
-
-  function selectTheme(themeId: ThemeId) {
-    updateProject((current) => ({ ...current, themeId }))
   }
 
   function selectTextStyle(textStyleId: TextStyleId, applyToAll = false) {
@@ -543,9 +538,6 @@ export function SlideshowStudio() {
                         : "border-black/10 bg-white/45 hover:bg-white/75"
                     )}
                   >
-                    <span className="mb-2 block text-[11px] font-semibold text-black/45 tabular-nums">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
                     <span
                       className="relative block aspect-[9/12] overflow-hidden rounded-lg"
                       style={{
@@ -561,10 +553,6 @@ export function SlideshowStudio() {
                           }}
                         />
                       )}
-                      <span
-                        className="absolute inset-0"
-                        style={{ background: activeTheme.wash }}
-                      />
                       {slide.textLayers.map(
                         (layer) =>
                           layer.visible && (
@@ -651,10 +639,6 @@ export function SlideshowStudio() {
                   }}
                 />
               )}
-              <div
-                className="absolute inset-0"
-                style={{ background: activeTheme.wash }}
-              />
               {activeSlide.textLayers.map(
                 (layer) =>
                   layer.visible && (
@@ -671,13 +655,6 @@ export function SlideshowStudio() {
                     </div>
                   )
               )}
-              <div
-                className="absolute top-[7%] left-[9%] text-[10px] font-semibold tracking-[0.12em]"
-                style={{ color: activeTheme.muted }}
-              >
-                {String(activeIndex + 1).padStart(2, "0")} /{" "}
-                {String(project.slides.length).padStart(2, "0")}
-              </div>
             </motion.div>
           </AnimatePresence>
         </section>
@@ -711,43 +688,6 @@ export function SlideshowStudio() {
                 : "Rewrite this slide"}
             </Button>
           </div>
-
-          <fieldset className="mb-6">
-            <legend className="mb-3 text-xs font-semibold text-black/60">
-              Theme
-            </legend>
-            <div className="space-y-2">
-              {slideshowThemes.map((theme) => (
-                <button
-                  key={theme.id}
-                  type="button"
-                  onClick={() => selectTheme(theme.id)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                    theme.id === project.themeId
-                      ? "border-[#4758c7] bg-[#eef0ff]"
-                      : "border-black/10 bg-white hover:border-black/20"
-                  )}
-                >
-                  <span
-                    className="block size-10 shrink-0 rounded-lg ring-1 ring-black/10"
-                    style={{ background: theme.preview }}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold">
-                      {theme.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-black/45">
-                      {theme.description}
-                    </span>
-                  </span>
-                  {theme.id === project.themeId && (
-                    <Check className="size-4 text-[#4758c7]" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </fieldset>
 
           <fieldset className="mb-6">
             <legend className="mb-3 text-xs font-semibold text-black/60">
@@ -946,6 +886,7 @@ function getTextLayerStyle(
   const { rect, style } = layer
   const fontFamily = {
     sans: "var(--font-sans)",
+    casual: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
     mono: "var(--font-mono)",
   }[style.fontFamily]

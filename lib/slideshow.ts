@@ -17,7 +17,7 @@ export const slideLayoutIds = [
 export type SlideLayoutId = (typeof slideLayoutIds)[number]
 export type TextLayerRole = "hook" | "body" | "custom"
 export type TextAlignment = "left" | "center" | "right"
-export type TextFontFamily = "sans" | "serif" | "mono"
+export type TextFontFamily = "sans" | "casual" | "serif" | "mono"
 
 export type SlideImage = {
   id: string
@@ -309,10 +309,11 @@ const layoutPresets: Record<
     hook: {
       rect: { x: 12, y: 18, width: 76, height: 18 },
       style: {
-        fontSize: 5.5,
-        fontWeight: 600,
-        lineHeight: 1.26,
-        letterSpacing: -0.025,
+        fontFamily: "casual",
+        fontSize: 5.4,
+        fontWeight: 500,
+        lineHeight: 1.2,
+        letterSpacing: -0.015,
         align: "center",
         color: { type: "custom", value: "#101114" },
         backgroundColor: "rgba(255,255,255,.96)",
@@ -325,9 +326,11 @@ const layoutPresets: Record<
     body: {
       rect: { x: 13, y: 39, width: 74, height: 34 },
       style: {
-        fontSize: 5,
+        fontFamily: "casual",
+        fontSize: 5.15,
         fontWeight: 400,
-        lineHeight: 1.38,
+        lineHeight: 1.32,
+        letterSpacing: -0.012,
         align: "center",
         color: { type: "custom", value: "#ffffff" },
         backgroundColor: null,
@@ -537,11 +540,17 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
   if (isProjectV2(value)) {
     return {
       ...value,
-      slides: value.slides.map((slide) => ({
-        ...slide,
-        layoutId: slide.layoutId ?? "clean-white",
-        imageQuery: slide.imageQuery ?? null,
-      })),
+      slides: value.slides.map((slide) => {
+        const normalizedSlide = {
+          ...slide,
+          layoutId: slide.layoutId ?? "clean-white",
+          imageQuery: slide.imageQuery ?? null,
+        }
+
+        return normalizedSlide.layoutId === "label-body"
+          ? applySlideLayout(normalizedSlide, "label-body")
+          : normalizedSlide
+      }),
     }
   }
   if (!isLegacyProject(value)) return null
