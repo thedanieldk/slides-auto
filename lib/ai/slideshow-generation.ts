@@ -1,5 +1,8 @@
 import { z } from "zod"
 
+import { copyFormatIds } from "@/lib/ai/copy-formats"
+import { productProfileDraftSchema } from "@/lib/products/product-profile"
+
 export const generatedSlideSchema = z.object({
   hook: z.string().trim().min(1).max(120),
   body: z.string().trim().max(180),
@@ -17,6 +20,8 @@ export const slideshowGenerationRequestSchema = z.object({
   prompt: z.string().trim().min(12).max(2000),
   slideCount: z.number().int().min(2).max(10),
   layoutId: z.enum(["editorial", "centered", "caption-card"]),
+  copyFormatId: z.enum(copyFormatIds),
+  product: productProfileDraftSchema.nullable(),
 })
 
 export const slideRewriteRequestSchema = z.object({

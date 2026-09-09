@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Check,
   FileText,
   ImageIcon,
   LoaderCircle,
@@ -12,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { ProductProfilePicker } from "@/components/product-profile-picker"
 import { cn } from "@/lib/utils"
 import {
   composeGeneratedSlideshow,
@@ -20,7 +22,9 @@ import {
   type CompositionResult,
 } from "@/lib/composition"
 import { generatedSlideshowSchema } from "@/lib/ai/slideshow-generation"
+import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
 import { getTextLayer, slideLayouts, type SlideLayoutId } from "@/lib/slideshow"
+import type { ProductProfile } from "@/lib/products/product-profile"
 
 type CompositionDialogProps = {
   open: boolean
@@ -37,6 +41,10 @@ export function CompositionDialog({
 }: CompositionDialogProps) {
   const [script, setScript] = useState("")
   const [mode, setMode] = useState<ComposerMode>("ai")
+  const [copyFormatId, setCopyFormatId] = useState<CopyFormatId>("smart")
+  const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
+    null
+  )
   const [slideCount, setSlideCount] = useState(5)
   const [layoutId, setLayoutId] = useState<SlideLayoutId>("editorial")
   const [result, setResult] = useState<CompositionResult | null>(null)
@@ -73,6 +81,14 @@ export function CompositionDialog({
           prompt: script,
           slideCount,
           layoutId,
+          copyFormatId,
+          product: selectedProduct
+            ? {
+                name: selectedProduct.name,
+                niche: selectedProduct.niche,
+                valueProposition: selectedProduct.valueProposition,
+              }
+            : null,
         }),
       })
       const payload: unknown = await response.json()
@@ -117,6 +133,12 @@ export function CompositionDialog({
 
   function updateMode(value: ComposerMode) {
     setMode(value)
+    setResult(null)
+    setError(null)
+  }
+
+  function updateCopyFormat(value: CopyFormatId) {
+    setCopyFormatId(value)
     setResult(null)
     setError(null)
   }
@@ -221,6 +243,62 @@ export function CompositionDialog({
                     className="min-h-52 w-full resize-y rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-relaxed transition outline-none placeholder:text-black/28 focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
                   />
                 </label>
+
+                {mode === "ai" && (
+                  <>
+                    <fieldset className="mb-6">
+                      <legend className="mb-3 text-xs font-semibold text-black/60">
+                        Copy format
+                      </legend>
+                      <div className="space-y-2">
+                        {copyFormats.map((format) => {
+                          const selected = format.id === copyFormatId
+
+                          return (
+                            <button
+                              key={format.id}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => updateCopyFormat(format.id)}
+                              className={cn(
+                                "group flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                                selected
+                                  ? "border-[#4758c7] bg-[#eef0ff]"
+                                  : "border-black/10 bg-white hover:border-black/20"
+                              )}
+                            >
+                              <FormatMarker
+                                formatId={format.id}
+                                selected={selected}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center justify-between gap-3">
+                                  <span className="text-xs font-semibold">
+                                    {format.name}
+                                  </span>
+                                  {selected && (
+                                    <Check className="size-3.5 shrink-0 text-[#4758c7]" />
+                                  )}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] leading-relaxed text-black/45">
+                                  {format.description}
+                                </span>
+                                <span className="mt-1 block text-[10px] font-medium text-black/35">
+                                  Product: {format.productRole}
+                                </span>
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </fieldset>
+
+                    <ProductProfilePicker
+                      value={selectedProduct}
+                      onChange={setSelectedProduct}
+                    />
+                  </>
+                )}
 
                 <div className="mb-6">
                   <div className="mb-2 flex items-center justify-between">
@@ -405,6 +483,40 @@ export function CompositionDialog({
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function FormatMarker({
+  formatId,
+  selected,
+}: {
+  formatId: CopyFormatId
+  selected: boolean
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "grid size-9 shrink-0 place-items-center rounded-lg border transition",
+        selected
+          ? "border-[#4758c7]/20 bg-white text-[#4758c7]"
+          : "border-black/8 bg-[#f6f5f2] text-black/35"
+      )}
+    >
+      {formatId === "smart" ? (
+        <WandSparkles className="size-4" />
+      ) : (
+        <span className="grid gap-0.5 text-[8px] leading-none font-bold tabular-nums">
+          <span>1 —</span>
+          <span
+            className={cn(formatId === "helpful-habits" && "text-[#f06f5d]")}
+          >
+            2 —
+          </span>
+          <span>3 —</span>
+        </span>
+      )}
+    </span>
+  )
 }
 
 function LayoutMiniature({ layoutId }: { layoutId: SlideLayoutId }) {

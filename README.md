@@ -23,6 +23,10 @@ ANTHROPIC_API_KEY=your_key_here
 The key is read only by the server route and is never sent to the browser.
 `ANTHROPIC_MODEL` is optional; the default is Claude Haiku 4.5.
 
+The AI composer uses Claude Web Fetch to create a lightweight product profile
+from a public product page. Profiles are reviewed by the user and stored only
+in that browser for reuse in later slideshow generations.
+
 ## Project structure
 
 - `app` — Next.js routes, layout, metadata, and global styles
