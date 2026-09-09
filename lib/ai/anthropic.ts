@@ -64,8 +64,8 @@ export async function requestAnthropicJson({
       ok: false,
       error:
         error instanceof DOMException && error.name === "TimeoutError"
-          ? "Claude took too long to respond. Try again."
-          : "Could not reach Claude. Check your connection and try again.",
+          ? "AI generation took too long. Try again."
+          : "Could not reach the AI service. Check your connection and try again.",
       status: 502,
     }
   }
@@ -85,9 +85,9 @@ export async function requestAnthropicJson({
         providerResponse.status === 401
           ? "The Anthropic API key was rejected. Check .env.local."
           : providerResponse.status === 429
-            ? "Claude is receiving too many requests. Wait a moment and retry."
+            ? "The AI service is receiving too many requests. Wait a moment and retry."
             : providerBody.error?.message ||
-              "Claude could not complete the request.",
+              "The AI service could not complete the request.",
     }
   }
 
@@ -98,7 +98,7 @@ export async function requestAnthropicJson({
     if (!fetchResult) {
       return {
         ok: false,
-        error: "Claude could not read that product page. Try another link.",
+        error: "The product page could not be read. Try another link.",
         status: 422,
       }
     }
@@ -121,7 +121,7 @@ export async function requestAnthropicJson({
   if (!text) {
     return {
       ok: false,
-      error: "Claude returned an empty response. Try again.",
+      error: "The AI service returned an empty response. Try again.",
       status: 502,
     }
   }
@@ -131,7 +131,7 @@ export async function requestAnthropicJson({
   } catch {
     return {
       ok: false,
-      error: "Claude returned an unreadable response. Try again.",
+      error: "The AI service returned an unreadable response. Try again.",
       status: 502,
     }
   }
@@ -143,14 +143,14 @@ function getWebFetchError(errorCode: string | undefined) {
     case "url_too_long":
       return "Enter a shorter, valid product website URL."
     case "url_not_allowed":
-      return "Claude is not allowed to open that product page."
+      return "The AI service is not allowed to open that product page."
     case "unsupported_content_type":
       return "That link is not a supported webpage or PDF."
     case "too_many_requests":
       return "The product page is receiving too many requests. Try again later."
     case "url_not_accessible":
-      return "Claude could not access that product page."
+      return "The product page could not be accessed."
     default:
-      return "Claude could not read that product page. Try another link."
+      return "The product page could not be read. Try another link."
   }
 }

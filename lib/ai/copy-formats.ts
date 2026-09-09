@@ -17,7 +17,7 @@ export const copyFormats = [
   {
     id: "smart",
     name: "Smart pick",
-    description: "Let Claude choose the structure that fits your idea.",
+    description: "Let AI choose the structure that fits your idea.",
     productRole: "Chosen from the context",
   },
   {

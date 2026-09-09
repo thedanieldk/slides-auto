@@ -76,16 +76,16 @@ export async function POST(request: Request) {
   const parsedOutput = outputSchema.safeParse(normalizedOutput)
   if (!parsedOutput.success) {
     console.error(
-      `[generate:${generationRequest.mode}] Claude output validation failed`,
+      `[generate:${generationRequest.mode}] Provider output validation failed`,
       parsedOutput.error.issues
     )
 
     const error =
       generationRequest.mode === "concepts"
-        ? "Claude returned incomplete concepts. Try again."
+        ? "The generated concepts were incomplete. Try again."
         : generationRequest.mode === "slideshow"
-          ? "Claude returned incomplete slide copy. Try again."
-          : "Claude returned an incomplete slide rewrite. Try again."
+          ? "The generated slide copy was incomplete. Try again."
+          : "The generated slide rewrite was incomplete. Try again."
 
     return Response.json({ error }, { status: 502 })
   }
@@ -96,7 +96,9 @@ export async function POST(request: Request) {
     parsedOutput.data.slides.length !== generationRequest.slideCount
   ) {
     return Response.json(
-      { error: "Claude returned the wrong number of slides. Try again." },
+      {
+        error: "The slideshow contained the wrong number of slides. Try again.",
+      },
       { status: 502 }
     )
   }

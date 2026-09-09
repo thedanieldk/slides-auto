@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   const profile = productProfileDraftSchema.safeParse(providerResult.data)
   if (!profile.success) {
     return Response.json(
-      { error: "Claude returned an incomplete product profile. Try again." },
+      { error: "The generated product profile was incomplete. Try again." },
       { status: 502 }
     )
   }

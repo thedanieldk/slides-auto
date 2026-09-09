@@ -30,17 +30,29 @@ export const generatedConceptResponseSchema = z
     concepts: [conceptOne, conceptTwo, conceptThree],
   }))
 
-export const generatedSlideSchema = z.object({
-  hook: z.string().trim().min(1).max(120),
-  body: z.string().trim().max(180),
-  imageQuery: z.string().trim().min(1).max(100),
-  layoutId: z.enum(textStyleIds),
-})
+export const generatedSlideSchema = z
+  .object({
+    hook: z.string().trim().min(1),
+    body: z.string().trim(),
+    imageQuery: z.string().trim().min(1),
+    layoutId: z.enum(textStyleIds),
+  })
+  .transform((slide) => ({
+    ...slide,
+    hook: limitText(slide.hook, 120),
+    body: limitText(slide.body, 180),
+    imageQuery: limitText(slide.imageQuery, 100, false),
+  }))
 
-export const generatedSlideshowSchema = z.object({
-  title: z.string().trim().min(1).max(80),
-  slides: z.array(generatedSlideSchema).min(2).max(10),
-})
+export const generatedSlideshowSchema = z
+  .object({
+    title: z.string().trim().min(1),
+    slides: z.array(generatedSlideSchema).min(2).max(10),
+  })
+  .transform((slideshow) => ({
+    ...slideshow,
+    title: limitText(slideshow.title, 80),
+  }))
 
 export const slideshowGenerationRequestSchema = z.object({
   mode: z.literal("slideshow"),
@@ -178,7 +190,8 @@ export function normalizeGeneratedSlideshow(
   value: unknown,
   slideCount: number
 ): unknown {
-  if (!isRecord(value) || !isRecord(value.slides)) return value
+  if (!isRecord(value) || Array.isArray(value.slides)) return value
+  if (!isRecord(value.slides)) return value
   const numberedSlides = value.slides
 
   const slides = Array.from(
@@ -198,4 +211,11 @@ export const slideOutputJsonSchema = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function limitText(value: string, maximum: number, addEllipsis = true) {
+  if (value.length <= maximum) return value
+
+  const ending = addEllipsis ? "…" : ""
+  return `${value.slice(0, maximum - ending.length).trimEnd()}${ending}`
 }

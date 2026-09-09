@@ -107,7 +107,7 @@ export function ProductProfilePicker({
 
       const analysis = productProfileAnalysisSchema.safeParse(responseBody.data)
       if (!analysis.success) {
-        throw new Error("Claude returned an incomplete product profile.")
+        throw new Error("The generated product profile was incomplete.")
       }
       setDraft(analysis.data)
     } catch (analysisError) {
@@ -258,7 +258,7 @@ export function ProductProfilePicker({
             <div>
               <p className="text-xs font-semibold">Add a product</p>
               <p className="mt-0.5 text-[10px] text-black/40">
-                Claude will draft three editable fields.
+                AI will draft three editable fields.
               </p>
             </div>
             <button

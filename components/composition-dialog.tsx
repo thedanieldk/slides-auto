@@ -97,13 +97,13 @@ export function CompositionDialog({
         throw new Error(
           typeof responseBody.error === "string"
             ? responseBody.error
-            : "Claude could not generate concepts."
+            : "The AI service could not generate concepts."
         )
       }
 
       const generated = generatedConceptsSchema.safeParse(responseBody.data)
       if (!generated.success) {
-        throw new Error("Claude returned incomplete concepts. Try again.")
+        throw new Error("The generated concepts were incomplete. Try again.")
       }
 
       setConcepts(generated.data.concepts)
@@ -147,13 +147,13 @@ export function CompositionDialog({
         throw new Error(
           typeof responseBody.error === "string"
             ? responseBody.error
-            : "Claude could not generate the slideshow."
+            : "The AI service could not generate the slideshow."
         )
       }
 
       const generated = generatedSlideshowSchema.safeParse(responseBody.data)
       if (!generated.success) {
-        throw new Error("Claude returned an incomplete slideshow. Try again.")
+        throw new Error("The generated slideshow was incomplete. Try again.")
       }
 
       setResult(
@@ -478,7 +478,7 @@ export function CompositionDialog({
                     </h3>
                     <p className="text-[11px] text-black/40">
                       {mode === "ai" && !result
-                        ? "Claude infers three angles from the product profile."
+                        ? "AI infers three angles from the product profile."
                         : "Review the split before replacing your slides."}
                     </p>
                   </div>
@@ -599,7 +599,7 @@ export function CompositionDialog({
                         {mode === "ai"
                           ? selectedProduct
                             ? "Generate concepts to see three different ways into this product's story."
-                            : "Choose a product first. Its profile gives Claude enough context to find the angles."
+                            : "Choose a product first. Its profile gives the generator enough context to find the angles."
                           : "Add at least a sentence, choose a layout, then build the composition."}
                       </p>
                     </div>

@@ -285,13 +285,13 @@ export function SlideshowStudio() {
         throw new Error(
           typeof responseBody.error === "string"
             ? responseBody.error
-            : "Claude could not rewrite this slide."
+            : "The AI service could not rewrite this slide."
         )
       }
 
       const generated = generatedSlideSchema.safeParse(responseBody.data)
       if (!generated.success) {
-        throw new Error("Claude returned incomplete slide copy. Try again.")
+        throw new Error("The generated slide copy was incomplete. Try again.")
       }
 
       updateProject((current) => ({
