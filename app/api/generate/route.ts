@@ -1,12 +1,13 @@
 import { requestAnthropicJson } from "@/lib/ai/anthropic"
 import {
   conceptsOutputJsonSchema,
+  createSlideshowOutputJsonSchema,
   generatedConceptResponseSchema,
   generatedSlideSchema,
   generatedSlideshowSchema,
   generationRequestSchema,
+  normalizeGeneratedSlideshow,
   slideOutputJsonSchema,
-  slideshowOutputJsonSchema,
 } from "@/lib/ai/slideshow-generation"
 import {
   createGenerationPrompt,
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     generationRequest.mode === "concepts"
       ? conceptsOutputJsonSchema
       : generationRequest.mode === "slideshow"
-        ? slideshowOutputJsonSchema
+        ? createSlideshowOutputJsonSchema(generationRequest.slideCount)
         : slideOutputJsonSchema
   const providerResult = await requestAnthropicJson({
     maxTokens,
@@ -65,7 +66,14 @@ export async function POST(request: Request) {
       : generationRequest.mode === "slideshow"
         ? generatedSlideshowSchema
         : generatedSlideSchema
-  const parsedOutput = outputSchema.safeParse(providerResult.data)
+  const normalizedOutput =
+    generationRequest.mode === "slideshow"
+      ? normalizeGeneratedSlideshow(
+          providerResult.data,
+          generationRequest.slideCount
+        )
+      : providerResult.data
+  const parsedOutput = outputSchema.safeParse(normalizedOutput)
   if (!parsedOutput.success) {
     console.error(
       `[generate:${generationRequest.mode}] Claude output validation failed`,

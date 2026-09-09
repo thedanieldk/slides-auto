@@ -48,6 +48,7 @@ ${createProductContext(request.product)}`
     return `Create exactly ${request.slideCount} connected slideshow slides from the selected concept below.
 
 The first slide should make someone want to keep reading without sounding clickbait-y. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
+Fill every numbered slide field in the response format. Do not merge or omit slides.
 
 ${getCopyFormatInstructions(request.concept.copyFormatId)}
 

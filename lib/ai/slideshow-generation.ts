@@ -140,26 +140,54 @@ function createConceptJsonSchema() {
   } as const
 }
 
-export const slideshowOutputJsonSchema = {
-  type: "object",
-  properties: {
-    title: {
-      type: "string",
-      description: "A short working title for the slideshow.",
-    },
-    slides: {
-      type: "array",
-      items: {
+export function createSlideshowOutputJsonSchema(slideCount: number) {
+  const slideKeys = Array.from(
+    { length: slideCount },
+    (_, index) => `slide${index + 1}`
+  )
+  const slideSchema = {
+    type: "object",
+    properties: slideProperties,
+    required: ["hook", "body", "imageQuery", "layoutId"],
+    additionalProperties: false,
+  } as const
+
+  return {
+    type: "object",
+    properties: {
+      title: {
+        type: "string",
+        description: "A short working title for the slideshow.",
+      },
+      slides: {
         type: "object",
-        properties: slideProperties,
-        required: ["hook", "body", "imageQuery", "layoutId"],
+        description: `Exactly ${slideCount} slides in reading order.`,
+        properties: Object.fromEntries(
+          slideKeys.map((key) => [key, slideSchema])
+        ),
+        required: slideKeys,
         additionalProperties: false,
       },
     },
-  },
-  required: ["title", "slides"],
-  additionalProperties: false,
-} as const
+    required: ["title", "slides"],
+    additionalProperties: false,
+  } as const
+}
+
+export function normalizeGeneratedSlideshow(
+  value: unknown,
+  slideCount: number
+): unknown {
+  if (!isRecord(value) || !isRecord(value.slides)) return value
+  const numberedSlides = value.slides
+
+  const slides = Array.from(
+    { length: slideCount },
+    (_, index) => numberedSlides[`slide${index + 1}`]
+  )
+
+  return { title: value.title, slides }
+}
 
 export const slideOutputJsonSchema = {
   type: "object",
@@ -167,3 +195,7 @@ export const slideOutputJsonSchema = {
   required: ["hook", "body", "imageQuery", "layoutId"],
   additionalProperties: false,
 } as const
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
