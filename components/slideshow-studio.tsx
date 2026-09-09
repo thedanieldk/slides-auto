@@ -25,7 +25,10 @@ import { ImageSearchDialog } from "@/components/image-search-dialog"
 import { applyGeneratedCopy, type CompositionResult } from "@/lib/composition"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
 import { searchImages } from "@/lib/images/search-images"
-import type { ImageSearchResult } from "@/lib/images/image-provider"
+import {
+  DEFAULT_IMAGE_QUERY,
+  type ImageSearchResult,
+} from "@/lib/images/image-provider"
 import {
   applySlideLayout,
   createProject,
@@ -362,7 +365,7 @@ export function SlideshowStudio() {
 
   async function autoFillMissingImages() {
     const targets = project.slides.flatMap((slide) => {
-      const query = getSlideImageQuery(slide)
+      const query = getSlideImageQuery()
       return !slide.image && query.length >= 2 ? [{ slide, query }] : []
     })
 
@@ -842,11 +845,9 @@ export function SlideshowStudio() {
                 {activeSlide.image ? "Upload replacement" : "Upload image"}
               </Button>
             </div>
-            {activeSlide.imageQuery && (
-              <p className="mt-2 text-[11px] leading-relaxed text-black/45">
-                Suggested search: {activeSlide.imageQuery}
-              </p>
-            )}
+            <p className="mt-2 text-[11px] leading-relaxed text-black/45">
+              Suggested search: {getSlideImageQuery()}
+            </p>
             {activeSlide.image && (
               <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
                 <span className="truncate">{activeSlide.image.name}</span>
@@ -905,7 +906,7 @@ export function SlideshowStudio() {
       />
       <ImageSearchDialog
         open={imageSearchOpen}
-        initialQuery={getSlideImageQuery(activeSlide)}
+        initialQuery={getSlideImageQuery()}
         onClose={() => setImageSearchOpen(false)}
         onSelect={(image) => {
           updateActiveSlide({ image })
@@ -916,12 +917,8 @@ export function SlideshowStudio() {
   )
 }
 
-function getSlideImageQuery(slide: SlideshowSlide) {
-  return (
-    slide.imageQuery?.trim() ||
-    getTextLayer(slide, "hook")?.text.trim().slice(0, 100) ||
-    ""
-  )
+function getSlideImageQuery() {
+  return DEFAULT_IMAGE_QUERY
 }
 
 function toSlideImage(result: ImageSearchResult): SlideImage {

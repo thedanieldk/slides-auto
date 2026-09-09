@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+export const DEFAULT_IMAGE_QUERY = "girl aesthetic faceless wellness warm"
+
 export const imageSearchRequestSchema = z.object({
   query: z.string().trim().min(2).max(100),
 })

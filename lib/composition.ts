@@ -10,6 +10,7 @@ import type {
   GeneratedSlide,
   GeneratedSlideshow,
 } from "@/lib/ai/slideshow-generation"
+import { DEFAULT_IMAGE_QUERY } from "@/lib/images/image-provider"
 
 export type CompositionOptions = {
   script: string
@@ -21,35 +22,6 @@ export type CompositionResult = {
   title: string
   slides: SlideshowSlide[]
 }
-
-const stopWords = new Set([
-  "about",
-  "after",
-  "again",
-  "also",
-  "because",
-  "before",
-  "being",
-  "from",
-  "have",
-  "into",
-  "just",
-  "more",
-  "that",
-  "their",
-  "there",
-  "these",
-  "they",
-  "this",
-  "through",
-  "what",
-  "when",
-  "where",
-  "which",
-  "with",
-  "would",
-  "your",
-])
 
 export function composeScript({
   script,
@@ -72,7 +44,7 @@ export function composeScript({
 
     return {
       ...slide,
-      imageQuery: createImageQuery(`${hook} ${body}`),
+      imageQuery: DEFAULT_IMAGE_QUERY,
       textLayers,
     }
   })
@@ -232,16 +204,6 @@ function cleanPiece(value: string) {
     .replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "")
     .replace(/\s+/g, " ")
     .trim()
-}
-
-function createImageQuery(value: string) {
-  const words = value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .split(/\s+/)
-    .filter((word) => word.length > 3 && !stopWords.has(word))
-
-  return [...new Set(words)].slice(0, 4).join(" ") || "editorial texture"
 }
 
 function makeTitle(value: string) {

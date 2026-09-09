@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { copyFormatIds } from "@/lib/ai/copy-formats"
+import { DEFAULT_IMAGE_QUERY } from "@/lib/images/image-provider"
 import { productProfileDraftSchema } from "@/lib/products/product-profile"
 import { slideLayoutIds, textStyleIds } from "@/lib/slideshow"
 
@@ -34,14 +35,13 @@ export const generatedSlideSchema = z
   .object({
     hook: z.string().trim().min(1),
     body: z.string().trim(),
-    imageQuery: z.string().trim().min(1),
     layoutId: z.enum(textStyleIds),
   })
   .transform((slide) => ({
     ...slide,
     hook: limitText(slide.hook, 120),
     body: limitText(slide.body, 180),
-    imageQuery: limitText(slide.imageQuery, 100, false),
+    imageQuery: DEFAULT_IMAGE_QUERY,
   }))
 
 export const generatedSlideshowSchema = z
@@ -100,11 +100,6 @@ const slideProperties = {
     type: "string",
     description: "Optional supporting copy, no more than 180 characters.",
   },
-  imageQuery: {
-    type: "string",
-    description:
-      "Three to seven concrete terms describing a candid, portrait-friendly photograph with a visible subject, action, or setting.",
-  },
   layoutId: {
     type: "string",
     enum: textStyleIds,
@@ -160,7 +155,7 @@ export function createSlideshowOutputJsonSchema(slideCount: number) {
   const slideSchema = {
     type: "object",
     properties: slideProperties,
-    required: ["hook", "body", "imageQuery", "layoutId"],
+    required: ["hook", "body", "layoutId"],
     additionalProperties: false,
   } as const
 
@@ -205,7 +200,7 @@ export function normalizeGeneratedSlideshow(
 export const slideOutputJsonSchema = {
   type: "object",
   properties: slideProperties,
-  required: ["hook", "body", "imageQuery", "layoutId"],
+  required: ["hook", "body", "layoutId"],
   additionalProperties: false,
 } as const
 
