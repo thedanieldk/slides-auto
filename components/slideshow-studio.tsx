@@ -57,6 +57,7 @@ import {
   type SlideshowTheme,
   type TextFontFamily,
   type TextLayer,
+  type TextLayerStyle,
   type TextStyleId,
 } from "@/lib/slideshow"
 
@@ -882,7 +883,7 @@ export function SlideshowStudio() {
                     key={layer.id}
                     className={cn(
                       "absolute z-10 touch-none text-pretty",
-                      layer.locked ? "cursor-default" : "cursor-move",
+                      layer.locked ? "cursor-default" : "cursor-text",
                       isSelected &&
                         "outline-2 outline-offset-2 outline-[#fff58f]"
                     )}
@@ -1448,7 +1449,7 @@ function getTextLayerStyle(
     fontFamily,
     fontSize: `${style.fontSize}cqw`,
     fontWeight: style.fontWeight,
-    lineHeight: style.lineHeight,
+    lineHeight: getLineModeLineHeight(style),
     letterSpacing: `${style.letterSpacing}em`,
     textAlign: style.align,
     textTransform: style.textTransform,
@@ -1462,6 +1463,24 @@ function getTextLayerStyle(
         ? undefined
         : `${style.borderRadius}cqw`,
   }
+}
+
+function getLineModeLineHeight(style: TextLayerStyle) {
+  if (
+    style.backgroundMode !== "line" ||
+    !style.backgroundColor ||
+    !style.padding
+  ) {
+    return style.lineHeight
+  }
+
+  // box-decoration-break: clone paints the padding around every wrapped
+  // line without reserving extra space for it, so a tight line-height lets
+  // adjacent lines' padded backgrounds overlap and double up their opacity,
+  // reading as a dark seam between lines. Widen the leading just enough to
+  // keep the padded boxes apart.
+  const minLineHeight = 1 + (2 * style.padding) / style.fontSize
+  return Math.max(style.lineHeight, minLineHeight)
 }
 
 function getTextLayerContentStyle(layer: TextLayer): CSSProperties | undefined {
