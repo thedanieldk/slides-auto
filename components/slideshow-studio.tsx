@@ -281,6 +281,31 @@ export function SlideshowStudio() {
     updateTextLayer(layer.id, { visible: !layer.visible })
   }
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") return
+      if (!selectedLayer || !selectedLayer.visible || selectedLayer.locked) {
+        return
+      }
+
+      const active = document.activeElement
+      const isEditingText =
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        (active instanceof HTMLElement && active.isContentEditable)
+      if (isEditingText) return
+
+      event.preventDefault()
+      toggleLayerVisibility(selectedLayer)
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+    // toggleLayerVisibility only wraps updateTextLayer, which reads current
+    // state through setProject's updater, so omitting it here is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLayer])
+
   function selectBackgroundMode(mode: "none" | "line" | "block") {
     if (!selectedLayer) return
 
