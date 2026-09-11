@@ -8,6 +8,7 @@ import {
   ArrowUp,
   Check,
   Copy,
+  Download,
   ImagePlus,
   Images,
   Layers3,
@@ -19,6 +20,8 @@ import {
   Trash2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
+import { toBlob } from "html-to-image"
+import JSZip from "jszip"
 import {
   useEffect,
   useMemo,
@@ -27,6 +30,8 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react"
+import { flushSync } from "react-dom"
+import { createRoot } from "react-dom/client"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -125,6 +130,7 @@ export function SlideshowStudio() {
   const [composerOpen, setComposerOpen] = useState(false)
   const [imageSearchOpen, setImageSearchOpen] = useState(false)
   const [isAutoFillingImages, setIsAutoFillingImages] = useState(false)
+  const [isExportingZip, setIsExportingZip] = useState(false)
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(
     null
   )
@@ -656,6 +662,39 @@ export function SlideshowStudio() {
     }
   }
 
+  async function downloadSlidesAsZip() {
+    setIsExportingZip(true)
+    setNotice(null)
+    try {
+      await document.fonts.ready
+
+      const zip = new JSZip()
+      let exported = 0
+      for (const [index, slide] of project.slides.entries()) {
+        const blob = await renderSlideToBlob(slide, activeTheme)
+        if (blob) {
+          zip.file(`slide-${String(index + 1).padStart(2, "0")}.png`, blob)
+          exported += 1
+        }
+      }
+
+      if (exported === 0) {
+        setNotice("Nothing could be exported. Try again.")
+        return
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      downloadBlob(zipBlob, `${slugifyFilename(project.title)}.zip`)
+      setNotice(
+        `Downloaded ${exported} ${exported === 1 ? "slide" : "slides"} as a zip.`
+      )
+    } catch {
+      setNotice("Could not create the download. Try again.")
+    } finally {
+      setIsExportingZip(false)
+    }
+  }
+
   return (
     <main className="min-h-svh bg-[#e9e7e2] text-[#1b1c24]">
       <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b border-black/10 bg-[#f8f7f4]/95 px-4 py-3 backdrop-blur md:px-6">
@@ -700,6 +739,21 @@ export function SlideshowStudio() {
           >
             <Sparkles data-icon="inline-start" />
             <span className="hidden sm:inline">Compose</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isExportingZip}
+            onClick={() => void downloadSlidesAsZip()}
+          >
+            {isExportingZip ? (
+              <LoaderCircle data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            <span className="hidden sm:inline">
+              {isExportingZip ? "Zipping…" : "Download"}
+            </span>
           </Button>
           <Button variant="outline" size="sm" onClick={restoreStarter}>
             <RotateCcw data-icon="inline-start" />
@@ -1494,6 +1548,105 @@ function getTextLayerContentStyle(layer: TextLayer): CSSProperties | undefined {
     boxDecorationBreak: "clone",
     WebkitBoxDecorationBreak: "clone",
   }
+}
+
+const EXPORT_WIDTH = 1080
+const EXPORT_HEIGHT = 1920
+
+function SlideExportCard({
+  slide,
+  theme,
+}: {
+  slide: SlideshowSlide
+  theme: SlideshowTheme
+}) {
+  return (
+    <div
+      className="relative size-full overflow-hidden"
+      style={{ background: theme.background, containerType: "inline-size" }}
+    >
+      {slide.image && (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${JSON.stringify(slide.image.dataUrl)})`,
+          }}
+        />
+      )}
+      {slide.textLayers.map(
+        (layer) =>
+          layer.visible && (
+            <div
+              key={layer.id}
+              className="absolute z-10 overflow-hidden text-pretty"
+              style={getTextLayerStyle(layer, theme)}
+            >
+              <span style={getTextLayerContentStyle(layer)}>{layer.text}</span>
+            </div>
+          )
+      )}
+    </div>
+  )
+}
+
+async function renderSlideToBlob(
+  slide: SlideshowSlide,
+  theme: SlideshowTheme
+): Promise<Blob | null> {
+  // html-to-image renders a blank canvas for nodes placed far outside the
+  // viewport (e.g. position: fixed with a large negative offset), so the
+  // export target is kept at normal, in-viewport coordinates and hidden by
+  // clipping it inside a zero-size overflow:hidden ancestor instead.
+  const clipper = document.createElement("div")
+  clipper.style.position = "fixed"
+  clipper.style.top = "0"
+  clipper.style.left = "0"
+  clipper.style.width = "0"
+  clipper.style.height = "0"
+  clipper.style.overflow = "hidden"
+  clipper.style.pointerEvents = "none"
+
+  const container = document.createElement("div")
+  container.style.width = `${EXPORT_WIDTH}px`
+  container.style.height = `${EXPORT_HEIGHT}px`
+  clipper.appendChild(container)
+  document.body.appendChild(clipper)
+
+  const root = createRoot(container)
+  try {
+    flushSync(() => {
+      root.render(<SlideExportCard slide={slide} theme={theme} />)
+    })
+
+    return await toBlob(container, {
+      width: EXPORT_WIDTH,
+      height: EXPORT_HEIGHT,
+      pixelRatio: 1,
+    })
+  } finally {
+    root.unmount()
+    clipper.remove()
+  }
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function slugifyFilename(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  return slug || "slideshow"
 }
 
 function getBackgroundOpacity(layer: TextLayer) {
