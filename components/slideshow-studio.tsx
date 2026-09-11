@@ -1407,7 +1407,7 @@ export function SlideshowStudio() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full rounded-xl border-black/10 bg-white hover:border-black/20 hover:bg-white"
                   onClick={() => void autoFillMissingImages()}
                   disabled={isAutoFillingImages}
                 >
@@ -1423,16 +1423,13 @@ export function SlideshowStudio() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full rounded-xl border-black/10 bg-white hover:border-black/20 hover:bg-white"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <ImagePlus data-icon="inline-start" />
                   {activeSlide.image ? "Upload replacement" : "Upload image"}
                 </Button>
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-black/45">
-                Suggested search: {getSlideImageQuery()}
-              </p>
               {activeSlide.image && (
                 <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
                   <span className="truncate">{activeSlide.image.name}</span>
