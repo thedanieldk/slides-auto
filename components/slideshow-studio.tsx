@@ -1132,43 +1132,35 @@ export function SlideshowStudio() {
             </fieldset>
 
             {selectedLayer && selectedFont && (
-              <fieldset className="mb-6 border-t border-black/10 pt-5">
+              <fieldset className="mb-6">
                 <legend className="sr-only">Selected text layer</legend>
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <p className="text-xs font-semibold text-black/60">
-                    {selectedLayer.name} layer
-                  </p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="rounded-full bg-[#eef0ff] px-2 py-1 text-[10px] font-medium text-[#4758c7]">
-                      {selectedFont.name} selected
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={
-                        selectedLayer.visible
-                          ? `Delete ${selectedLayer.name.toLowerCase()} layer`
-                          : `Restore ${selectedLayer.name.toLowerCase()} layer`
-                      }
-                      title={
-                        selectedLayer.visible
-                          ? "Delete this text box"
-                          : "Restore this text box"
-                      }
-                      onClick={() => toggleLayerVisibility(selectedLayer)}
-                      className={cn(
-                        "grid size-7 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                        selectedLayer.visible
-                          ? "border-black/10 bg-white text-black/45 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                          : "border-[#4758c7]/30 bg-[#eef0ff] text-[#4758c7]"
-                      )}
-                    >
-                      {selectedLayer.visible ? (
-                        <Trash2 className="size-3.5" />
-                      ) : (
-                        <Eye className="size-3.5" />
-                      )}
-                    </button>
-                  </div>
+                <div className="mb-3 flex justify-end">
+                  <button
+                    type="button"
+                    aria-label={
+                      selectedLayer.visible
+                        ? `Delete ${selectedLayer.name.toLowerCase()} layer`
+                        : `Restore ${selectedLayer.name.toLowerCase()} layer`
+                    }
+                    title={
+                      selectedLayer.visible
+                        ? "Delete this text box"
+                        : "Restore this text box"
+                    }
+                    onClick={() => toggleLayerVisibility(selectedLayer)}
+                    className={cn(
+                      "grid size-7 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                      selectedLayer.visible
+                        ? "border-black/10 bg-white text-black/45 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                        : "border-[#4758c7]/30 bg-[#eef0ff] text-[#4758c7]"
+                    )}
+                  >
+                    {selectedLayer.visible ? (
+                      <Trash2 className="size-3.5" />
+                    ) : (
+                      <Eye className="size-3.5" />
+                    )}
+                  </button>
                 </div>
 
                 <div>
