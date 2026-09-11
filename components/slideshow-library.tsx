@@ -1,13 +1,17 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
+import { Button } from "@/components/ui/button"
+import { CompositionDialog } from "@/components/composition-dialog"
 import { SlideExportCard } from "@/components/slideshow-studio"
+import type { CompositionResult } from "@/lib/composition"
 import {
   createBlankProject,
+  createProjectFromComposition,
   ensureSeedProjects,
   listProjects,
 } from "@/lib/project-storage"
@@ -16,6 +20,7 @@ import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
 export function SlideshowLibrary() {
   const router = useRouter()
   const [projects, setProjects] = useState<SlideshowProject[] | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -31,12 +36,27 @@ export function SlideshowLibrary() {
     router.push(`/slideshow/${project.id}`)
   }
 
+  function handleComposed(result: CompositionResult) {
+    const project = createProjectFromComposition(result)
+    setComposerOpen(false)
+    router.push(`/slideshow/${project.id}`)
+  }
+
   return (
     <main className="min-h-svh bg-[#e9e7e2] px-6 py-10 text-[#1b1c24] md:px-10">
       <div className="mx-auto max-w-5xl">
-        <h1 className="mb-6 text-2xl font-semibold">
-          Slideshows{projects && ` (${projects.length})`}
-        </h1>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold">
+            Slideshows{projects && ` (${projects.length})`}
+          </h1>
+          <Button
+            className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
+            onClick={() => setComposerOpen(true)}
+          >
+            <Sparkles data-icon="inline-start" />
+            Compose
+          </Button>
+        </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {projects?.map((project) => {
@@ -73,6 +93,12 @@ export function SlideshowLibrary() {
           </button>
         </div>
       </div>
+
+      <CompositionDialog
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        onApply={handleComposed}
+      />
     </main>
   )
 }

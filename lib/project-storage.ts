@@ -1,3 +1,4 @@
+import type { CompositionResult } from "@/lib/composition"
 import {
   createProject,
   loadSlideshowProject,
@@ -38,6 +39,22 @@ export function saveProject(project: SlideshowProject) {
 
 export function createBlankProject(): SlideshowProject {
   const project = createProject()
+  saveProject(project)
+  return project
+}
+
+export function createProjectFromComposition(
+  result: CompositionResult
+): SlideshowProject {
+  const project: SlideshowProject = {
+    version: 2,
+    id: crypto.randomUUID(),
+    title: result.title,
+    themeId: "paper",
+    activeSlideId: result.slides[0]!.id,
+    slides: result.slides,
+    updatedAt: new Date().toISOString(),
+  }
   saveProject(project)
   return project
 }

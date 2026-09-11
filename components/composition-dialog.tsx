@@ -484,7 +484,7 @@ export function CompositionDialog({
                     <p className="text-[11px] text-black/40">
                       {mode === "ai" && !result
                         ? "AI infers three angles from the product profile."
-                        : "Review the split before replacing your slides."}
+                        : "Review the split before creating your slides."}
                     </p>
                   </div>
                   {result && mode === "ai" ? (
@@ -553,7 +553,7 @@ export function CompositionDialog({
                       className="mt-4 w-full"
                       onClick={() => onApply(result)}
                     >
-                      Replace with {result.slides.length} slides
+                      Create slideshow with {result.slides.length} slides
                     </Button>
                   </>
                 ) : mode === "ai" && concepts.length > 0 ? (

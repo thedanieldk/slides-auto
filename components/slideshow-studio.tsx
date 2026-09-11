@@ -46,9 +46,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { CompositionDialog } from "@/components/composition-dialog"
 import { ImageSearchDialog } from "@/components/image-search-dialog"
-import { applyGeneratedCopy, type CompositionResult } from "@/lib/composition"
+import { applyGeneratedCopy } from "@/lib/composition"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
 import { searchImages } from "@/lib/images/search-images"
 import {
@@ -140,7 +139,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     "saved"
   )
   const [notice, setNotice] = useState<string | null>(null)
-  const [composerOpen, setComposerOpen] = useState(false)
   const [imageSearchOpen, setImageSearchOpen] = useState(false)
   const [isAutoFillingImages, setIsAutoFillingImages] = useState(false)
   const [isExportingZip, setIsExportingZip] = useState(false)
@@ -518,23 +516,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     setNotice(`Text style applied to all ${project.slides.length} slides.`)
   }
 
-  function applyComposition(result: CompositionResult) {
-    const shouldReplace = window.confirm(
-      `Replace the current slideshow with ${result.slides.length} composed slides?`
-    )
-    if (!shouldReplace) return
-
-    updateProject((current) => ({
-      ...current,
-      title:
-        current.title === "Untitled slideshow" ? result.title : current.title,
-      slides: result.slides,
-      activeSlideId: result.slides[0]!.id,
-    }))
-    setComposerOpen(false)
-    setNotice(`${result.slides.length} editable slides composed.`)
-  }
-
   async function regenerateActiveSlide() {
     const slide = activeSlide
     const slideIndex = activeIndex
@@ -785,15 +766,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
             {saveState === "saved" ? "Saved locally" : null}
             {saveState === "failed" ? "Not saved" : null}
           </div>
-          <Button
-            size="sm"
-            aria-label="Compose slideshow"
-            className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
-            onClick={() => setComposerOpen(true)}
-          >
-            <Sparkles data-icon="inline-start" />
-            <span className="hidden sm:inline">Compose</span>
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1536,11 +1508,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
         </aside>
       </div>
 
-      <CompositionDialog
-        open={composerOpen}
-        onClose={() => setComposerOpen(false)}
-        onApply={applyComposition}
-      />
       <ImageSearchDialog
         open={imageSearchOpen}
         initialQuery={getSlideImageQuery()}
