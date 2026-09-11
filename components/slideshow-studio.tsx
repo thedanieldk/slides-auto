@@ -5,6 +5,7 @@ import {
   AlignLeft,
   AlignRight,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   Copy,
@@ -748,10 +749,13 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
           <Link
             href="/"
             aria-label="Back to slideshows"
-            className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#4758c7] text-white shadow-[0_6px_18px_rgba(71,88,199,.22)] transition hover:bg-[#3e4db0]"
+            className="grid size-9 shrink-0 place-items-center rounded-xl border border-black/10 bg-white text-black/60 transition hover:border-black/20 hover:text-black"
           >
-            <Layers3 className="size-4.5" aria-hidden="true" />
+            <ArrowLeft className="size-4.5" aria-hidden="true" />
           </Link>
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#4758c7] text-white shadow-[0_6px_18px_rgba(71,88,199,.22)]">
+            <Layers3 className="size-4.5" aria-hidden="true" />
+          </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-black/45">Slides Auto</p>
             <input
