@@ -34,6 +34,13 @@ import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { CompositionDialog } from "@/components/composition-dialog"
 import { ImageSearchDialog } from "@/components/image-search-dialog"
@@ -1116,41 +1123,54 @@ export function SlideshowStudio() {
                   <p className="mb-2 text-[11px] font-medium text-black/50">
                     Font
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {FONT_OPTIONS.map((font) => {
-                      const isSelected = font.id === selectedFont.id
-
-                      return (
-                        <button
+                  <Select
+                    value={selectedFont.id}
+                    onValueChange={(value) =>
+                      updateSelectedLayerStyle({
+                        fontFamily: value as TextFontFamily,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-auto w-full justify-between rounded-xl border-black/10 bg-white px-3 py-2.5 hover:border-black/20 focus-visible:border-[#4758c7] focus-visible:ring-[#4758c7]/10">
+                      <SelectValue>
+                        {(value: TextFontFamily) => {
+                          const font =
+                            FONT_OPTIONS.find(
+                              (option) => option.id === value
+                            ) ?? FONT_OPTIONS[0]
+                          return (
+                            <span className="flex items-baseline gap-2">
+                              <span style={{ fontFamily: font.stack }}>
+                                {font.sample}
+                              </span>
+                              <span className="text-xs text-black/45">
+                                {font.name}
+                              </span>
+                            </span>
+                          )
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="border-black/10">
+                      {FONT_OPTIONS.map((font) => (
+                        <SelectItem
                           key={font.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          onClick={() =>
-                            updateSelectedLayerStyle({ fontFamily: font.id })
-                          }
-                          className={cn(
-                            "relative rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                            isSelected
-                              ? "border-[#4758c7] bg-[#eef0ff]"
-                              : "border-black/10 bg-white hover:border-black/20"
-                          )}
+                          value={font.id}
+                          className="focus:bg-[#eef0ff] focus:text-[#4758c7] data-[highlighted]:bg-[#eef0ff] data-[highlighted]:text-[#4758c7]"
                         >
                           <span
-                            className="block truncate text-sm"
+                            className="flex items-baseline gap-2"
                             style={{ fontFamily: font.stack }}
                           >
                             {font.sample}
+                            <span className="text-xs text-black/45">
+                              {font.name}
+                            </span>
                           </span>
-                          <span className="mt-0.5 block text-[10px] text-black/45">
-                            {font.name}
-                          </span>
-                          {isSelected && (
-                            <Check className="absolute top-2 right-2 size-3.5 text-[#4758c7]" />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <label className="mt-4 block">
