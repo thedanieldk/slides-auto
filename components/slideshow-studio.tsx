@@ -1135,15 +1135,9 @@ export function SlideshowStudio() {
               <fieldset className="mb-6 border-t border-black/10 pt-5">
                 <legend className="sr-only">Selected text layer</legend>
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold text-black/60">
-                      {selectedLayer.name} layer
-                    </p>
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-black/45">
-                      Drag to move · use the corner to resize · double-click or
-                      double-tap to type
-                    </p>
-                  </div>
+                  <p className="text-xs font-semibold text-black/60">
+                    {selectedLayer.name} layer
+                  </p>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="rounded-full bg-[#eef0ff] px-2 py-1 text-[10px] font-medium text-[#4758c7]">
                       {selectedFont.name} selected
