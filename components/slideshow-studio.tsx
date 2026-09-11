@@ -1435,11 +1435,10 @@ export function SlideshowStudio() {
                 </Button>
               </div>
               {activeSlide.image && (
-                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
-                  <span className="truncate">{activeSlide.image.name}</span>
+                <div className="mt-2 flex justify-end">
                   <button
                     type="button"
-                    className="font-medium text-red-700 hover:underline focus-visible:outline-2"
+                    className="text-[11px] font-medium text-red-700 hover:underline focus-visible:outline-2"
                     onClick={() => updateActiveSlide({ image: null })}
                   >
                     Remove
