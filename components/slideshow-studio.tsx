@@ -1177,13 +1177,6 @@ export function SlideshowStudio() {
                   </div>
                 </div>
 
-                {!selectedLayer.visible && (
-                  <p className="mb-4 rounded-lg bg-black/5 px-2.5 py-2 text-[11px] leading-relaxed text-black/55">
-                    This text box is deleted from the slide. Its text and style
-                    are kept — restore it with the button above.
-                  </p>
-                )}
-
                 <div>
                   <p className="mb-2 text-[11px] font-medium text-black/50">
                     Font
