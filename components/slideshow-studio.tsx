@@ -1051,7 +1051,7 @@ export function SlideshowStudio() {
                     <div className="size-full overflow-hidden">
                       <span
                         ref={isEditing ? inlineEditorRef : undefined}
-                        className="whitespace-pre-wrap"
+                        className="whitespace-pre-wrap outline-none"
                         style={getTextLayerContentStyle(layer)}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
