@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, Sparkles } from "lucide-react"
+import { Plus, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -12,6 +12,7 @@ import type { CompositionResult } from "@/lib/composition"
 import {
   createBlankProject,
   createProjectFromComposition,
+  deleteProject,
   ensureSeedProjects,
   listProjects,
 } from "@/lib/project-storage"
@@ -42,6 +43,21 @@ export function SlideshowLibrary() {
     router.push(`/slideshow/${project.id}`)
   }
 
+  function removeSlideshow(event: React.MouseEvent, project: SlideshowProject) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const shouldDelete = window.confirm(
+      `Delete "${project.title}"? This can't be undone.`
+    )
+    if (!shouldDelete) return
+
+    deleteProject(project.id)
+    setProjects(
+      (current) => current?.filter((p) => p.id !== project.id) ?? null
+    )
+  }
+
   return (
     <main className="min-h-svh bg-[#e9e7e2] px-6 py-10 text-[#1b1c24] md:px-10">
       <div className="mx-auto max-w-5xl">
@@ -69,12 +85,20 @@ export function SlideshowLibrary() {
               <Link
                 key={project.id}
                 href={`/slideshow/${project.id}`}
-                className="group block"
+                className="group relative block"
               >
-                <div className="aspect-[9/16] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40">
+                <div className="relative aspect-[9/16] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40">
                   {coverSlide && (
                     <SlideExportCard slide={coverSlide} theme={theme} />
                   )}
+                  <button
+                    type="button"
+                    aria-label={`Delete ${project.title}`}
+                    onClick={(event) => removeSlideshow(event, project)}
+                    className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
                 </div>
                 <p className="mt-2 truncate text-sm font-medium text-black/70">
                   {project.title}

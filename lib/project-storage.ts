@@ -37,6 +37,10 @@ export function saveProject(project: SlideshowProject) {
   window.localStorage.setItem(projectKey(project.id), JSON.stringify(project))
 }
 
+export function deleteProject(id: string) {
+  window.localStorage.removeItem(projectKey(id))
+}
+
 export function createBlankProject(): SlideshowProject {
   const project = createProject()
   saveProject(project)
