@@ -1,6 +1,6 @@
 "use client"
 
-import { FlaskConical, LayoutGrid, Plus, Sparkles, Trash2 } from "lucide-react"
+import { LayoutGrid, PenLine, Plus, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -21,7 +21,7 @@ import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
 
 const tabs = [
   { id: "formats", label: "Formats", icon: LayoutGrid },
-  { id: "test", label: "Test", icon: FlaskConical },
+  { id: "copy", label: "Copy", icon: PenLine },
 ] as const
 
 type TabId = (typeof tabs)[number]["id"]
