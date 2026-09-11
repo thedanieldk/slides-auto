@@ -1,6 +1,9 @@
 "use client"
 
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   ArrowDown,
   ArrowUp,
   Check,
@@ -16,7 +19,14 @@ import {
   Trash2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -45,11 +55,60 @@ import {
   type SlideshowProject,
   type SlideshowSlide,
   type SlideshowTheme,
+  type TextFontFamily,
   type TextLayer,
   type TextStyleId,
 } from "@/lib/slideshow"
 
 const STORAGE_KEY = "slides-auto.phase-one-project"
+
+const FONT_OPTIONS = [
+  {
+    id: "sans",
+    name: "Geist",
+    sample: "Clean",
+    stack: "var(--font-sans)",
+  },
+  {
+    id: "casual",
+    name: "Casual",
+    sample: "Everyday",
+    stack: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+  },
+  {
+    id: "handwritten",
+    name: "Handwritten",
+    sample: "Personal",
+    stack: "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive",
+  },
+  {
+    id: "serif",
+    name: "Georgia",
+    sample: "Editorial",
+    stack: "Georgia, 'Times New Roman', serif",
+  },
+  {
+    id: "mono",
+    name: "Geist Mono",
+    sample: "Notes",
+    stack: "var(--font-mono)",
+  },
+] as const satisfies readonly {
+  id: TextFontFamily
+  name: string
+  sample: string
+  stack: string
+}[]
+
+type LayerInteraction = {
+  layerId: string
+  mode: "drag" | "resize"
+  pointerId: number
+  startX: number
+  startY: number
+  startRect: TextLayer["rect"]
+  moved: boolean
+}
 
 function cloneStarterProject() {
   return structuredClone(starterProject)
@@ -68,7 +127,13 @@ export function SlideshowStudio() {
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(
     null
   )
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const slideCanvasRef = useRef<HTMLDivElement>(null)
+  const inlineEditorRef = useRef<HTMLSpanElement>(null)
+  const layerInteractionRef = useRef<LayerInteraction | null>(null)
+  const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
 
   useEffect(() => {
     const storedProject = window.localStorage.getItem(STORAGE_KEY)
@@ -109,6 +174,18 @@ export function SlideshowStudio() {
     return () => window.clearTimeout(timeout)
   }, [hasLoaded, project])
 
+  useEffect(() => {
+    const editor = inlineEditorRef.current
+    if (!editingLayerId || !editor) return
+
+    editor.focus()
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.selectNodeContents(editor)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }, [editingLayerId])
+
   const activeSlide = useMemo(
     () =>
       project.slides.find((slide) => slide.id === project.activeSlideId) ??
@@ -123,6 +200,20 @@ export function SlideshowStudio() {
     slideshowThemes[0]
   const hookLayer = getTextLayer(activeSlide, "hook")
   const bodyLayer = getTextLayer(activeSlide, "body")
+  const selectedLayer =
+    activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
+    hookLayer ??
+    bodyLayer
+  const selectedFont = selectedLayer
+    ? (FONT_OPTIONS.find(
+        (font) => font.id === selectedLayer.style.fontFamily
+      ) ?? FONT_OPTIONS[0])
+    : null
+  const selectedBackgroundMode = !selectedLayer?.style.backgroundColor
+    ? "none"
+    : selectedLayer.style.backgroundMode === "line"
+      ? "line"
+      : "block"
   const appliedTextStyle = getAppliedTextStyle(project.slides)
 
   function isTextStyleActive(textStyleId: TextStyleId) {
@@ -162,6 +253,138 @@ export function SlideshowStudio() {
           : slide
       ),
     }))
+  }
+
+  function updateSelectedLayerStyle(changes: Partial<TextLayer["style"]>) {
+    if (!selectedLayer) return
+    updateTextLayer(selectedLayer.id, {
+      style: { ...selectedLayer.style, ...changes },
+    })
+  }
+
+  function selectBackgroundMode(mode: "none" | "line" | "block") {
+    if (!selectedLayer) return
+
+    updateSelectedLayerStyle(
+      mode === "none"
+        ? { backgroundColor: null }
+        : {
+            backgroundColor: getColorInputValue(
+              selectedLayer.style.backgroundColor,
+              "#ffffff"
+            ),
+            backgroundMode: mode,
+            backgroundOpacity: getBackgroundOpacity(selectedLayer),
+            padding: selectedLayer.style.padding ?? 1.2,
+            borderRadius: selectedLayer.style.borderRadius ?? 1.4,
+          }
+    )
+  }
+
+  function startLayerInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    layer: TextLayer,
+    mode: LayerInteraction["mode"]
+  ) {
+    if (layer.locked || editingLayerId === layer.id) return
+    if (event.pointerType === "mouse" && event.button !== 0) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setSelectedLayerId(layer.id)
+    layerInteractionRef.current = {
+      layerId: layer.id,
+      mode,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRect: structuredClone(layer.rect),
+      moved: false,
+    }
+  }
+
+  function moveLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = layerInteractionRef.current
+    const canvas = slideCanvasRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId || !canvas) {
+      return
+    }
+
+    const canvasRect = canvas.getBoundingClientRect()
+    const deltaX =
+      ((event.clientX - interaction.startX) / canvasRect.width) * 100
+    const deltaY =
+      ((event.clientY - interaction.startY) / canvasRect.height) * 100
+    interaction.moved ||= Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5
+
+    const start = interaction.startRect
+    const rect =
+      interaction.mode === "drag"
+        ? {
+            ...start,
+            x: clamp(start.x + deltaX, 0, 100 - start.width),
+            y: clamp(start.y + deltaY, 0, 100 - start.height),
+          }
+        : {
+            ...start,
+            width: clamp(start.width + deltaX, 15, 100 - start.x),
+            height: clamp(start.height + deltaY, 8, 100 - start.y),
+          }
+
+    updateTextLayer(interaction.layerId, { rect })
+  }
+
+  function finishLayerInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    layer: TextLayer
+  ) {
+    const interaction = layerInteractionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    layerInteractionRef.current = null
+
+    if (
+      event.pointerType !== "touch" ||
+      interaction.mode !== "drag" ||
+      interaction.moved
+    ) {
+      return
+    }
+
+    const now = event.timeStamp
+    const lastTap = lastTapRef.current
+    if (lastTap?.layerId === layer.id && now - lastTap.timestamp < 350) {
+      setEditingLayerId(layer.id)
+      lastTapRef.current = null
+      return
+    }
+
+    lastTapRef.current = { layerId: layer.id, timestamp: now }
+  }
+
+  function cancelLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = layerInteractionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    layerInteractionRef.current = null
+  }
+
+  function startInlineEditing(layer: TextLayer) {
+    if (layer.locked) return
+    setSelectedLayerId(layer.id)
+    setEditingLayerId(layer.id)
+  }
+
+  function finishInlineEditing(layer: TextLayer, text: string) {
+    updateTextLayer(layer.id, { text: text.replace(/\n{3,}/g, "\n\n").trim() })
+    setEditingLayerId(null)
   }
 
   function addSlide() {
@@ -626,6 +849,7 @@ export function SlideshowStudio() {
 
           <AnimatePresence mode="wait">
             <motion.div
+              ref={slideCanvasRef}
               key={activeSlide.id}
               initial={{ opacity: 0, scale: 0.985 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -645,27 +869,107 @@ export function SlideshowStudio() {
                   }}
                 />
               )}
-              {activeSlide.textLayers.map(
-                (layer) =>
-                  layer.visible && (
-                    <div
-                      key={layer.id}
-                      className="absolute z-10 overflow-hidden text-pretty"
-                      data-layer-id={layer.id}
-                      data-layer-role={layer.role}
-                      style={getTextLayerStyle(layer, activeTheme)}
-                    >
-                      <span style={getTextLayerContentStyle(layer)}>
+              {activeSlide.textLayers.map((layer) => {
+                if (!layer.visible) return null
+
+                const isSelected = selectedLayer?.id === layer.id
+                const isEditing = editingLayerId === layer.id
+
+                return (
+                  <div
+                    key={layer.id}
+                    className={cn(
+                      "absolute z-10 touch-none text-pretty",
+                      layer.locked ? "cursor-default" : "cursor-move",
+                      isSelected &&
+                        "outline-2 outline-offset-2 outline-[#fff58f]"
+                    )}
+                    data-layer-id={layer.id}
+                    data-layer-role={layer.role}
+                    style={getTextLayerStyle(layer, activeTheme)}
+                    onDoubleClick={(event) => {
+                      event.stopPropagation()
+                      startInlineEditing(layer)
+                    }}
+                    onPointerDown={(event) =>
+                      startLayerInteraction(event, layer, "drag")
+                    }
+                    onPointerMove={moveLayerInteraction}
+                    onPointerUp={(event) =>
+                      finishLayerInteraction(event, layer)
+                    }
+                    onPointerCancel={cancelLayerInteraction}
+                  >
+                    <div className="size-full overflow-hidden">
+                      <span
+                        ref={isEditing ? inlineEditorRef : undefined}
+                        className="whitespace-pre-wrap"
+                        style={getTextLayerContentStyle(layer)}
+                        contentEditable={isEditing}
+                        suppressContentEditableWarning
+                        role={isEditing ? "textbox" : undefined}
+                        aria-label={
+                          isEditing ? `Edit ${layer.name}` : undefined
+                        }
+                        aria-multiline={isEditing || undefined}
+                        onPointerDown={(event) => {
+                          if (isEditing) event.stopPropagation()
+                        }}
+                        onBlur={(event) =>
+                          finishInlineEditing(
+                            layer,
+                            event.currentTarget.innerText
+                          )
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.currentTarget.innerText = layer.text
+                            setEditingLayerId(null)
+                            event.currentTarget.blur()
+                          }
+                          if (
+                            event.key === "Enter" &&
+                            (event.metaKey || event.ctrlKey)
+                          ) {
+                            event.preventDefault()
+                            event.currentTarget.blur()
+                          }
+                        }}
+                      >
                         {layer.text || `Add ${layer.name.toLowerCase()} text`}
                       </span>
                     </div>
-                  )
-              )}
+
+                    {isSelected && !isEditing && !layer.locked && (
+                      <button
+                        type="button"
+                        aria-label={`Resize ${layer.name}`}
+                        className="absolute -right-2 -bottom-2 size-4 cursor-nwse-resize rounded-full border-2 border-[#4758c7] bg-white shadow-sm"
+                        onPointerDown={(event) =>
+                          startLayerInteraction(event, layer, "resize")
+                        }
+                        onPointerMove={(event) => {
+                          event.stopPropagation()
+                          moveLayerInteraction(event)
+                        }}
+                        onPointerUp={(event) => {
+                          event.stopPropagation()
+                          finishLayerInteraction(event, layer)
+                        }}
+                        onPointerCancel={(event) => {
+                          event.stopPropagation()
+                          cancelLayerInteraction(event)
+                        }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </motion.div>
           </AnimatePresence>
         </section>
 
-        <aside className="border-t border-black/10 bg-[#f8f7f4] p-5 lg:border-t-0 lg:border-l">
+        <aside className="border-t border-black/10 bg-[#f8f7f4] p-5 lg:max-h-[calc(100svh-4rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l">
           <div className="mb-6">
             <div className="mb-1 flex items-center gap-2">
               <Sparkles className="size-4 text-[#f06f5d]" aria-hidden="true" />
@@ -728,6 +1032,235 @@ export function SlideshowStudio() {
               ))}
             </div>
           </fieldset>
+
+          {selectedLayer && selectedFont && (
+            <fieldset className="mb-6 border-t border-black/10 pt-5">
+              <legend className="sr-only">Selected text layer</legend>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-black/60">
+                    {selectedLayer.name} layer
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-black/45">
+                    Drag to move · use the corner to resize · double-click or
+                    double-tap to type
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#eef0ff] px-2 py-1 text-[10px] font-medium text-[#4758c7]">
+                  {selectedFont.name} selected
+                </span>
+              </div>
+
+              <div>
+                <p className="mb-2 text-[11px] font-medium text-black/50">
+                  Font
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {FONT_OPTIONS.map((font) => {
+                    const isSelected = font.id === selectedFont.id
+
+                    return (
+                      <button
+                        key={font.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() =>
+                          updateSelectedLayerStyle({ fontFamily: font.id })
+                        }
+                        className={cn(
+                          "relative rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                          isSelected
+                            ? "border-[#4758c7] bg-[#eef0ff]"
+                            : "border-black/10 bg-white hover:border-black/20"
+                        )}
+                      >
+                        <span
+                          className="block truncate text-sm"
+                          style={{ fontFamily: font.stack }}
+                        >
+                          {font.sample}
+                        </span>
+                        <span className="mt-0.5 block text-[10px] text-black/45">
+                          {font.name}
+                        </span>
+                        {isSelected && (
+                          <Check className="absolute top-2 right-2 size-3.5 text-[#4758c7]" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <label className="mt-4 block">
+                <span className="mb-2 flex items-center justify-between text-[11px] font-medium text-black/50">
+                  <span>Font size</span>
+                  <span className="tabular-nums">
+                    {selectedLayer.style.fontSize.toFixed(1)}
+                  </span>
+                </span>
+                <input
+                  type="range"
+                  min="2"
+                  max="14"
+                  step="0.1"
+                  value={selectedLayer.style.fontSize}
+                  onChange={(event) =>
+                    updateSelectedLayerStyle({
+                      fontSize: Number(event.target.value),
+                    })
+                  }
+                  className="w-full accent-[#4758c7]"
+                />
+              </label>
+
+              <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3">
+                <div>
+                  <p className="mb-2 text-[11px] font-medium text-black/50">
+                    Alignment
+                  </p>
+                  <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1">
+                    {(
+                      [
+                        ["left", AlignLeft],
+                        ["center", AlignCenter],
+                        ["right", AlignRight],
+                      ] as const
+                    ).map(([alignment, Icon]) => (
+                      <button
+                        key={alignment}
+                        type="button"
+                        aria-label={`Align ${alignment}`}
+                        aria-pressed={selectedLayer.style.align === alignment}
+                        onClick={() =>
+                          updateSelectedLayerStyle({ align: alignment })
+                        }
+                        className={cn(
+                          "grid h-8 place-items-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                          selectedLayer.style.align === alignment
+                            ? "bg-[#eef0ff] text-[#4758c7]"
+                            : "text-black/45 hover:bg-black/5"
+                        )}
+                      >
+                        <Icon className="size-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label>
+                  <span className="mb-2 block text-[11px] font-medium text-black/50">
+                    Text
+                  </span>
+                  <input
+                    type="color"
+                    aria-label="Text color"
+                    value={getColorInputValue(
+                      selectedLayer.style.color.type === "custom"
+                        ? selectedLayer.style.color.value
+                        : resolveLayerColor(
+                            selectedLayer.style.color,
+                            activeTheme
+                          ),
+                      "#ffffff"
+                    )}
+                    onChange={(event) =>
+                      updateSelectedLayerStyle({
+                        color: { type: "custom", value: event.target.value },
+                      })
+                    }
+                    className="h-10 w-12 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4">
+                <p className="mb-2 text-[11px] font-medium text-black/50">
+                  Text box
+                </p>
+                <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1 text-[11px] font-medium">
+                  {(
+                    [
+                      ["none", "None"],
+                      ["line", "Behind text"],
+                      ["block", "Full box"],
+                    ] as const
+                  ).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={selectedBackgroundMode === mode}
+                      onClick={() => selectBackgroundMode(mode)}
+                      className={cn(
+                        "min-h-9 rounded-lg px-1 transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                        selectedBackgroundMode === mode
+                          ? "bg-[#eef0ff] text-[#4758c7]"
+                          : "text-black/45 hover:bg-black/5"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedBackgroundMode !== "none" && (
+                <div className="mt-3 rounded-xl border border-black/10 bg-white p-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[11px] font-medium text-black/50">
+                      Box color
+                    </span>
+                    <input
+                      type="color"
+                      aria-label="Text box color"
+                      value={getColorInputValue(
+                        selectedLayer.style.backgroundColor,
+                        "#ffffff"
+                      )}
+                      onChange={(event) =>
+                        updateSelectedLayerStyle({
+                          backgroundColor: event.target.value,
+                        })
+                      }
+                      className="h-8 w-11 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
+                    />
+                  </div>
+                  <EditorRange
+                    label="Opacity"
+                    value={getBackgroundOpacity(selectedLayer)}
+                    display={`${Math.round(getBackgroundOpacity(selectedLayer) * 100)}%`}
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    onChange={(backgroundOpacity) =>
+                      updateSelectedLayerStyle({ backgroundOpacity })
+                    }
+                  />
+                  <EditorRange
+                    label="Padding"
+                    value={selectedLayer.style.padding ?? 0}
+                    display={(selectedLayer.style.padding ?? 0).toFixed(1)}
+                    min={0}
+                    max={4}
+                    step={0.1}
+                    onChange={(padding) =>
+                      updateSelectedLayerStyle({ padding })
+                    }
+                  />
+                  <EditorRange
+                    label="Corners"
+                    value={selectedLayer.style.borderRadius ?? 0}
+                    display={(selectedLayer.style.borderRadius ?? 0).toFixed(1)}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    onChange={(borderRadius) =>
+                      updateSelectedLayerStyle({ borderRadius })
+                    }
+                  />
+                </div>
+              )}
+            </fieldset>
+          )}
 
           <div className="mb-6">
             <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
@@ -800,6 +1333,7 @@ export function SlideshowStudio() {
                 className="min-h-24 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
                 maxLength={120}
                 value={hookLayer?.text ?? ""}
+                onFocus={() => hookLayer && setSelectedLayerId(hookLayer.id)}
                 onChange={(event) =>
                   hookLayer &&
                   updateTextLayer(hookLayer.id, { text: event.target.value })
@@ -818,6 +1352,7 @@ export function SlideshowStudio() {
                 className="min-h-20 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
                 maxLength={180}
                 value={bodyLayer?.text ?? ""}
+                onFocus={() => bodyLayer && setSelectedLayerId(bodyLayer.id)}
                 onChange={(event) =>
                   bodyLayer &&
                   updateTextLayer(bodyLayer.id, { text: event.target.value })
@@ -888,13 +1423,10 @@ function getTextLayerStyle(
   theme: SlideshowTheme
 ): CSSProperties {
   const { rect, style } = layer
-  const fontFamily = {
-    sans: "var(--font-sans)",
-    casual: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
-    handwritten: "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive",
-    serif: "Georgia, 'Times New Roman', serif",
-    mono: "var(--font-mono)",
-  }[style.fontFamily]
+  const fontFamily =
+    FONT_OPTIONS.find((font) => font.id === style.fontFamily)?.stack ??
+    FONT_OPTIONS[0].stack
+  const backgroundColor = getLayerBackgroundColor(layer)
 
   return {
     left: `${rect.x}%`,
@@ -903,9 +1435,7 @@ function getTextLayerStyle(
     height: `${rect.height}%`,
     color: resolveLayerColor(style.color, theme),
     backgroundColor:
-      style.backgroundMode === "line"
-        ? undefined
-        : (style.backgroundColor ?? undefined),
+      style.backgroundMode === "line" ? undefined : backgroundColor,
     fontFamily,
     fontSize: `${style.fontSize}cqw`,
     fontWeight: style.fontWeight,
@@ -930,12 +1460,94 @@ function getTextLayerContentStyle(layer: TextLayer): CSSProperties | undefined {
   if (style.backgroundMode !== "line" || !style.backgroundColor) return
 
   return {
-    backgroundColor: style.backgroundColor,
+    backgroundColor: getLayerBackgroundColor(layer),
     padding: style.padding ? `${style.padding}cqw` : undefined,
     borderRadius: style.borderRadius ? `${style.borderRadius}cqw` : undefined,
     boxDecorationBreak: "clone",
     WebkitBoxDecorationBreak: "clone",
   }
+}
+
+function getBackgroundOpacity(layer: TextLayer) {
+  if (layer.style.backgroundOpacity !== undefined) {
+    return layer.style.backgroundOpacity
+  }
+
+  const alpha = layer.style.backgroundColor?.match(
+    /rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)/i
+  )?.[1]
+  return alpha ? clamp(Number(alpha), 0, 1) : 1
+}
+
+function getLayerBackgroundColor(layer: TextLayer) {
+  const { backgroundColor, backgroundOpacity } = layer.style
+  if (!backgroundColor) return undefined
+  if (backgroundOpacity === undefined) return backgroundColor
+
+  const rgb = parseHexColor(backgroundColor)
+  return rgb
+    ? `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, ${backgroundOpacity})`
+    : backgroundColor
+}
+
+function parseHexColor(value: string) {
+  const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(value)
+  if (!match) return null
+
+  return {
+    red: Number.parseInt(match[1]!, 16),
+    green: Number.parseInt(match[2]!, 16),
+    blue: Number.parseInt(match[3]!, 16),
+  }
+}
+
+function getColorInputValue(value: string | null, fallback: string) {
+  if (value && /^#[\da-f]{6}$/i.test(value)) return value
+  if (value?.includes("0,0,0") || value?.includes("0, 0, 0")) return "#000000"
+  if (value?.includes("255,255,255") || value?.includes("255, 255, 255")) {
+    return "#ffffff"
+  }
+  return fallback
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function EditorRange({
+  display,
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+}: {
+  display: string
+  label: string
+  max: number
+  min: number
+  onChange: (value: number) => void
+  step: number
+  value: number
+}) {
+  return (
+    <label className="mt-3 block">
+      <span className="mb-1.5 flex items-center justify-between text-[10px] text-black/45">
+        <span>{label}</span>
+        <span className="tabular-nums">{display}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="w-full accent-[#4758c7]"
+      />
+    </label>
+  )
 }
 
 function TextStyleSwatch({ textStyleId }: { textStyleId: TextStyleId }) {

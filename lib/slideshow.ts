@@ -63,6 +63,8 @@ export type TextLayerStyle = {
   backgroundColor: string | null
   /** Whether the background fills the layer or hugs each line of text. */
   backgroundMode?: "block" | "line"
+  /** Background opacity from 0 to 1. */
+  backgroundOpacity?: number
   /** Inner spacing as a percentage of the slide width. */
   padding?: number
   /** Corner radius as a percentage of the slide width. */

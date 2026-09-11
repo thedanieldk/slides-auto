@@ -259,6 +259,11 @@ slides. Nothing is locked after generation.
 The current studio supports:
 
 - Editing hook and supporting text
+- Selecting a text layer directly on the slide
+- Dragging and resizing text with proportional slide coordinates
+- Editing text inline with a double-click or double-tap
+- Changing a selected layer's font, size, alignment, and color
+- Adding a background behind each line of text or around the full text layer
 - Rewriting one slide with Claude while providing the previous and next hooks
 - Choosing one text style for the full carousel
 - Adding, duplicating, deleting, and reordering slides
@@ -277,10 +282,26 @@ current generated slides contain a `hook` layer and a `body` layer. A layer
 stores its role, text, position, dimensions, visibility, lock state, font,
 size, weight, line height, alignment, colors, background treatment, and shadow.
 
-The data model is ready for richer editing, including custom layers and direct
-position controls. The current UI exposes copy editing and complete style
-presets; drag, resize, arbitrary layer creation, and individual font controls
-are still future editor work.
+The editor shows a selection outline around the active layer. Dragging the
+layer changes its percentage-based `x` and `y` coordinates, while the corner
+handle changes its percentage-based width and height. This keeps the layout
+proportional between the browser preview and a future 1080 × 1920 export.
+
+Double-clicking a layer on desktop or double-tapping it on touch devices turns
+the rendered text into an inline editor. The sidebar remains available for
+longer edits and selects the corresponding layer when its headline or
+supporting-text field receives focus.
+
+The layer controls expose the five font families already understood by saved
+projects: Geist, Casual, Handwritten, Georgia, and Geist Mono. The current font
+is labeled and checked in the picker. Font, size, alignment, text color, and
+text-box changes apply only to the selected layer and are saved with the
+project.
+
+A text box can be disabled, placed behind the individual wrapped lines, or
+drawn around the full layer rectangle. Its color, opacity, padding, and corner
+radius are editable. Arbitrary new text-layer creation is still future editor
+work.
 
 ### Text styles and raw images
 
