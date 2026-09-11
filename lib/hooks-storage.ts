@@ -1,10 +1,12 @@
 export type SavedHook = {
   id: string
   text: string
+  frameworkId: string
   createdAt: string
 }
 
 const HOOKS_STORAGE_KEY = "slides-auto.hooks.v1"
+const FALLBACK_FRAMEWORK_ID = "five-step"
 
 export function listSavedHooks(): SavedHook[] {
   if (typeof window === "undefined") return []
@@ -14,17 +16,24 @@ export function listSavedHooks(): SavedHook[] {
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isSavedHook)
+    return parsed.filter(isSavedHook).map((hook) => ({
+      ...hook,
+      frameworkId: hook.frameworkId || FALLBACK_FRAMEWORK_ID,
+    }))
   } catch {
     return []
   }
 }
 
-export function addSavedHooks(texts: string[]): SavedHook[] {
+export function addSavedHooks(
+  texts: string[],
+  frameworkId: string
+): SavedHook[] {
   const now = new Date().toISOString()
   const newHooks: SavedHook[] = texts.map((text) => ({
     id: crypto.randomUUID(),
     text,
+    frameworkId,
     createdAt: now,
   }))
 

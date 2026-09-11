@@ -157,10 +157,11 @@ export function SlideshowLibrary() {
           ) : (
             <>
               <div className="mb-6">
-                <h1 className="text-2xl font-semibold">Hooks</h1>
+                <h1 className="text-2xl font-semibold">Frameworks</h1>
                 <p className="mt-1 text-sm text-black/50">
-                  Generate a batch of opening lines with AI, then pick one in
-                  Compose to write the rest of the slides.
+                  Pick a copy framework, generate hooks that follow its
+                  structure, then pick one in Compose to write the rest of the
+                  slides.
                 </p>
               </div>
               <HooksCanvas />

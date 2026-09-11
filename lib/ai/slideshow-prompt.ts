@@ -3,6 +3,7 @@ import {
   type GenerationRequest,
 } from "@/lib/ai/slideshow-generation"
 import { getCopyFormatInstructions } from "@/lib/ai/copy-formats"
+import { getHookFramework } from "@/lib/ai/frameworks"
 
 export const SLIDESHOW_SYSTEM_PROMPT = `You write copy for short vertical slideshow posts.
 
@@ -67,12 +68,16 @@ Product placement: ${request.concept.productPlacement}
   }
 
   if (request.mode === "hooks") {
+    const framework = getHookFramework(request.frameworkId)
+
     const sections = [
-      `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below.`,
-      `Each hook must be a standalone, scroll-stopping first line under 120 characters. Make them meaningfully different from each other: vary the angle, the structure, and the emotional entry point. Do not number them or write any supporting copy, just the hook line itself.`,
+      `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below. Every hook must fit the “${framework.name}” framework described below. Do not drift into a different structure.`,
+      `${framework.name} framework: ${framework.description}\nExample title: "${framework.exampleTitle}"\nExample opening slide: "${framework.exampleSlide}"`,
+      getCopyFormatInstructions(framework.copyFormatId),
+      `Each hook must promise exactly ${framework.slideCount} items the way the example title does, stay under 120 characters, and be meaningfully different from the other hooks in topic and phrasing. Do not number the hooks themselves or write any supporting copy — just the title line.`,
       request.examples.length > 0
-        ? `The user provided these hooks as a style reference. Match their voice, phrasing pattern, and level of specificity as closely as you can — including second person (“you”), numbered-list framing, or third person, if that's what the examples use. This takes priority over the usual first-person voice from the instructions above. Do not reuse their exact topics, just the style:\n${request.examples.map((example) => `- "${example}"`).join("\n")}`
-        : `Choose whichever content format fits each hook best, and vary formats across the batch so they don't all read the same.`,
+        ? `The user also gave these additional hooks as a style reference — lean into their voice and phrasing on top of the framework above, but don't reuse their exact topics:\n${request.examples.map((example) => `- "${example}"`).join("\n")}`
+        : null,
       createProductContext(request.product),
     ]
 

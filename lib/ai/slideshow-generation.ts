@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { copyFormatIds } from "@/lib/ai/copy-formats"
+import { hookFrameworkIds } from "@/lib/ai/frameworks"
 import { DEFAULT_IMAGE_QUERY } from "@/lib/images/image-provider"
 import { productProfileDraftSchema } from "@/lib/products/product-profile"
 import { slideLayoutIds, textStyleIds } from "@/lib/slideshow"
@@ -93,6 +94,7 @@ export const generatedHooksSchema = z.object({
 
 export const hooksGenerationRequestSchema = z.object({
   mode: z.literal("hooks"),
+  frameworkId: z.enum(hookFrameworkIds),
   examples: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
   product: productProfileDraftSchema,
 })
