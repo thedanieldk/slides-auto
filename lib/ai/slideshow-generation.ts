@@ -93,7 +93,7 @@ export const generatedHooksSchema = z.object({
 
 export const hooksGenerationRequestSchema = z.object({
   mode: z.literal("hooks"),
-  copyFormatId: z.enum(copyFormatIds),
+  examples: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
   product: productProfileDraftSchema,
 })
 

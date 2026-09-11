@@ -67,18 +67,16 @@ Product placement: ${request.concept.productPlacement}
   }
 
   if (request.mode === "hooks") {
-    const formatDirection =
-      request.copyFormatId === "smart"
-        ? `Choose whichever formats fit the topic best, and vary them across the hooks so they don't all read the same.`
-        : `Write all hooks so they fit this format:\n${getCopyFormatInstructions(request.copyFormatId)}`
+    const sections = [
+      `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below.`,
+      `Each hook must be a standalone, scroll-stopping first line under 120 characters. Make them meaningfully different from each other: vary the angle, the structure, and the emotional entry point. Do not number them or write any supporting copy, just the hook line itself.`,
+      request.examples.length > 0
+        ? `The user provided these hooks as a style reference. Match their voice, phrasing pattern, and level of specificity as closely as you can — including second person (“you”), numbered-list framing, or third person, if that's what the examples use. This takes priority over the usual first-person voice from the instructions above. Do not reuse their exact topics, just the style:\n${request.examples.map((example) => `- "${example}"`).join("\n")}`
+        : `Choose whichever content format fits each hook best, and vary formats across the batch so they don't all read the same.`,
+      createProductContext(request.product),
+    ]
 
-    return `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below.
-
-Each hook must be a standalone, scroll-stopping first line under 120 characters. Make them meaningfully different from each other: vary the angle, the structure, and the emotional entry point. Do not number them or write any supporting copy, just the hook line itself.
-
-${formatDirection}
-
-${createProductContext(request.product)}`
+    return sections.filter(Boolean).join("\n\n")
   }
 
   if (request.mode === "slideshow-from-hook") {

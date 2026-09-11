@@ -5,9 +5,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ProductProfilePicker } from "@/components/product-profile-picker"
-import { cn } from "@/lib/utils"
 import { generatedHooksSchema } from "@/lib/ai/slideshow-generation"
-import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
 import {
   addSavedHooks,
   deleteSavedHook,
@@ -16,11 +14,16 @@ import {
 } from "@/lib/hooks-storage"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
+const EXAMPLE_HOOKS_PLACEHOLDER = [
+  "Hobbies that will make you unbelievably intelligent",
+  "5 healthy habits for your mornings",
+].join("\n")
+
 export function HooksCanvas() {
   const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
     null
   )
-  const [copyFormatId, setCopyFormatId] = useState<CopyFormatId>("smart")
+  const [examplesText, setExamplesText] = useState("")
   const [hooks, setHooks] = useState<SavedHook[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,13 +45,19 @@ export function HooksCanvas() {
     setIsGenerating(true)
     setError(null)
 
+    const examples = examplesText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 10)
+
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           mode: "hooks",
-          copyFormatId,
+          examples,
           product: toProductDraft(selectedProduct),
         }),
       })
@@ -92,30 +101,23 @@ export function HooksCanvas() {
           onChange={updateProduct}
         />
 
-        <fieldset className="mb-5">
-          <legend className="mb-3 text-xs font-semibold text-black/60">
-            Copy format
-          </legend>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/5 p-1">
-            {copyFormats.map((format) => (
-              <button
-                key={format.id}
-                type="button"
-                aria-pressed={format.id === copyFormatId}
-                onClick={() => setCopyFormatId(format.id)}
-                title={format.name}
-                className={cn(
-                  "truncate rounded-lg px-2 py-1.5 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
-                  format.id === copyFormatId
-                    ? "bg-white text-black shadow-sm"
-                    : "text-black/45 hover:text-black/70"
-                )}
-              >
-                {format.name}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        <label className="mb-5 block">
+          <span className="mb-2 block text-xs font-semibold text-black/60">
+            Example hooks{" "}
+            <span className="font-normal text-black/35">(optional)</span>
+          </span>
+          <textarea
+            value={examplesText}
+            maxLength={800}
+            rows={4}
+            onChange={(event) => setExamplesText(event.target.value)}
+            placeholder={EXAMPLE_HOOKS_PLACEHOLDER}
+            className="w-full resize-y rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs leading-relaxed transition outline-none placeholder:text-black/28 focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+          />
+          <span className="mt-1.5 block text-[10px] leading-relaxed text-black/40">
+            One per line. AI matches the tone and structure, not the topics.
+          </span>
+        </label>
 
         {error && (
           <p
