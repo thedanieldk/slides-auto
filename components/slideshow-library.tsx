@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { CompositionDialog } from "@/components/composition-dialog"
+import { HooksCanvas } from "@/components/hooks-canvas"
 import { SlideExportCard } from "@/components/slideshow-studio"
 import type { CompositionResult } from "@/lib/composition"
 import {
@@ -154,10 +155,16 @@ export function SlideshowLibrary() {
               </div>
             </>
           ) : (
-            <div className="flex h-[60vh] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/15 text-black/40">
-              <FlaskConical className="size-6" />
-              <p className="text-sm font-medium">Nothing here yet</p>
-            </div>
+            <>
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold">Hooks</h1>
+                <p className="mt-1 text-sm text-black/50">
+                  Generate a batch of opening lines with AI, then pick one in
+                  Compose to write the rest of the slides.
+                </p>
+              </div>
+              <HooksCanvas />
+            </>
           )}
         </div>
       </main>

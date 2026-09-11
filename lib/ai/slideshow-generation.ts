@@ -80,15 +80,43 @@ export const slideRewriteRequestSchema = z.object({
   layoutId: z.enum(slideLayoutIds),
 })
 
+export const HOOK_BATCH_SIZE = 8
+
+const hookKeys = Array.from(
+  { length: HOOK_BATCH_SIZE },
+  (_, index) => `hook${index + 1}`
+)
+
+export const generatedHooksSchema = z.object({
+  hooks: z.array(z.string().trim().min(1).max(240)).length(HOOK_BATCH_SIZE),
+})
+
+export const hooksGenerationRequestSchema = z.object({
+  mode: z.literal("hooks"),
+  copyFormatId: z.enum(copyFormatIds),
+  product: productProfileDraftSchema,
+})
+
+export const slideshowFromHookRequestSchema = z.object({
+  mode: z.literal("slideshow-from-hook"),
+  hook: z.string().trim().min(1).max(240),
+  slideCount: z.number().int().min(2).max(10),
+  layoutId: z.enum(textStyleIds),
+  product: productProfileDraftSchema,
+})
+
 export const generationRequestSchema = z.discriminatedUnion("mode", [
   conceptGenerationRequestSchema,
   slideshowGenerationRequestSchema,
   slideRewriteRequestSchema,
+  hooksGenerationRequestSchema,
+  slideshowFromHookRequestSchema,
 ])
 
 export type GeneratedConcept = z.infer<typeof generatedConceptSchema>
 export type GeneratedSlide = z.infer<typeof generatedSlideSchema>
 export type GeneratedSlideshow = z.infer<typeof generatedSlideshowSchema>
+export type GeneratedHooks = z.infer<typeof generatedHooksSchema>
 export type GenerationRequest = z.infer<typeof generationRequestSchema>
 
 const slideProperties = {
@@ -203,6 +231,27 @@ export const slideOutputJsonSchema = {
   required: ["hook", "body", "layoutId"],
   additionalProperties: false,
 } as const
+
+export const hooksOutputJsonSchema = {
+  type: "object",
+  properties: Object.fromEntries(
+    hookKeys.map((key) => [
+      key,
+      {
+        type: "string",
+        description:
+          "A single standalone opening hook for slide 1, under 120 characters.",
+      },
+    ])
+  ),
+  required: hookKeys,
+  additionalProperties: false,
+} as const
+
+export function normalizeGeneratedHooks(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  return { hooks: hookKeys.map((key) => value[key]) }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null

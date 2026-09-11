@@ -1,4 +1,7 @@
-import type { GenerationRequest } from "@/lib/ai/slideshow-generation"
+import {
+  HOOK_BATCH_SIZE,
+  type GenerationRequest,
+} from "@/lib/ai/slideshow-generation"
 import { getCopyFormatInstructions } from "@/lib/ai/copy-formats"
 
 export const SLIDESHOW_SYSTEM_PROMPT = `You write copy for short vertical slideshow posts.
@@ -45,11 +48,6 @@ ${createProductContext(request.product)}`
   }
 
   if (request.mode === "slideshow") {
-    const textStyleDirection =
-      request.layoutId === "yellow-cover"
-        ? `Use the “yellow-cover” text style on slide 1 only. Give slide 1 a short, natural subtitle in its body field, ideally under 55 characters. Use the “yellow-continuation” text style on every later slide, with concise copy suited to subtle centered white text.`
-        : `Use the “${request.layoutId}” text style on every slide so the carousel feels consistent.`
-
     return `Create exactly ${request.slideCount} connected slideshow slides from the selected concept below.
 
 The first slide should make someone want to keep reading without sounding clickbait-y. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
@@ -59,13 +57,42 @@ ${getCopyFormatInstructions(request.concept.copyFormatId)}
 
 ${createProductContext(request.product)}
 
-Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. ${textStyleDirection}
+Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. ${getTextStyleDirection(request.layoutId)}
 
 <selected_concept>
 Hook: ${request.concept.hook}
 Angle: ${request.concept.angle}
 Product placement: ${request.concept.productPlacement}
 </selected_concept>`
+  }
+
+  if (request.mode === "hooks") {
+    const formatDirection =
+      request.copyFormatId === "smart"
+        ? `Choose whichever formats fit the topic best, and vary them across the hooks so they don't all read the same.`
+        : `Write all hooks so they fit this format:\n${getCopyFormatInstructions(request.copyFormatId)}`
+
+    return `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below.
+
+Each hook must be a standalone, scroll-stopping first line under 120 characters. Make them meaningfully different from each other: vary the angle, the structure, and the emotional entry point. Do not number them or write any supporting copy, just the hook line itself.
+
+${formatDirection}
+
+${createProductContext(request.product)}`
+  }
+
+  if (request.mode === "slideshow-from-hook") {
+    return `Create exactly ${request.slideCount} connected slideshow slides that build on the fixed opening hook below.
+
+Slide 1's hook must stay essentially this exact line: "${request.hook}"
+Infer a natural content angle and a way to weave in the product from the hook and product profile below. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
+Fill every numbered slide field in the response format. Do not merge or omit slides.
+
+${getCopyFormatInstructions("smart")}
+
+${createProductContext(request.product)}
+
+Keep each hook under 120 characters and each body under 180 characters. Body text may be empty when a short hook works better. ${getTextStyleDirection(request.layoutId)}`
   }
 
   return `Rewrite slide ${request.slideIndex + 1} of ${request.slideCount}. Keep its main meaning, but make it sound more natural and make it connect with the surrounding slides.
@@ -77,6 +104,12 @@ Current body: ${request.currentBody || "No body text yet."}
 Next hook: ${request.nextHook ?? "This is the last slide."}
 
 Keep the hook under 120 characters and the body under 180 characters. Keep the “${normalizeTextStyleId(request.layoutId)}” text style.`
+}
+
+function getTextStyleDirection(layoutId: string) {
+  return layoutId === "yellow-cover"
+    ? `Use the “yellow-cover” text style on slide 1 only. Give slide 1 a short, natural subtitle in its body field, ideally under 55 characters. Use the “yellow-continuation” text style on every later slide, with concise copy suited to subtle centered white text.`
+    : `Use the “${layoutId}” text style on every slide so the carousel feels consistent.`
 }
 
 function normalizeTextStyleId(layoutId: string) {
