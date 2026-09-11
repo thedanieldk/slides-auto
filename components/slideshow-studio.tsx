@@ -219,6 +219,18 @@ export function SlideshowStudio() {
     activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
     hookLayer ??
     bodyLayer
+  const explicitlySelectedLayer =
+    selectedLayerId !== null
+      ? (activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
+        null)
+      : null
+  const navDeleteTarget:
+    { kind: "layer"; layer: TextLayer } | { kind: "image" } | null =
+    explicitlySelectedLayer
+      ? { kind: "layer", layer: explicitlySelectedLayer }
+      : activeSlide.image
+        ? { kind: "image" }
+        : null
   const selectedFont = selectedLayer
     ? (FONT_OPTIONS.find(
         (font) => font.id === selectedLayer.style.fontFamily
@@ -279,6 +291,15 @@ export function SlideshowStudio() {
 
   function toggleLayerVisibility(layer: TextLayer) {
     updateTextLayer(layer.id, { visible: !layer.visible })
+  }
+
+  function handleNavDelete() {
+    if (!navDeleteTarget) return
+    if (navDeleteTarget.kind === "image") {
+      updateActiveSlide({ image: null })
+    } else {
+      toggleLayerVisibility(navDeleteTarget.layer)
+    }
   }
 
   useEffect(() => {
@@ -938,6 +959,43 @@ export function SlideshowStudio() {
             <span>
               Slide {activeIndex + 1} of {project.slides.length}
             </span>
+            <button
+              type="button"
+              disabled={!navDeleteTarget}
+              aria-label={
+                !navDeleteTarget
+                  ? "Nothing to delete"
+                  : navDeleteTarget.kind === "image"
+                    ? "Remove image"
+                    : navDeleteTarget.layer.visible
+                      ? `Delete ${navDeleteTarget.layer.name.toLowerCase()} layer`
+                      : `Restore ${navDeleteTarget.layer.name.toLowerCase()} layer`
+              }
+              title={
+                navDeleteTarget?.kind === "image"
+                  ? "Remove image"
+                  : navDeleteTarget?.kind === "layer"
+                    ? navDeleteTarget.layer.visible
+                      ? "Delete this text box"
+                      : "Restore this text box"
+                    : undefined
+              }
+              onClick={handleNavDelete}
+              className={cn(
+                "grid size-7 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7] disabled:pointer-events-none disabled:opacity-30",
+                navDeleteTarget?.kind === "layer" &&
+                  !navDeleteTarget.layer.visible
+                  ? "border-[#4758c7]/30 bg-[#eef0ff] text-[#4758c7]"
+                  : "border-black/10 bg-white text-black/45 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              )}
+            >
+              {navDeleteTarget?.kind === "layer" &&
+              !navDeleteTarget.layer.visible ? (
+                <Eye className="size-3.5" />
+              ) : (
+                <Trash2 className="size-3.5" />
+              )}
+            </button>
             <span>1080 × 1920</span>
           </div>
 
@@ -1134,35 +1192,6 @@ export function SlideshowStudio() {
             {selectedLayer && selectedFont && (
               <fieldset className="mb-6">
                 <legend className="sr-only">Selected text layer</legend>
-                <div className="mb-3 flex justify-end">
-                  <button
-                    type="button"
-                    aria-label={
-                      selectedLayer.visible
-                        ? `Delete ${selectedLayer.name.toLowerCase()} layer`
-                        : `Restore ${selectedLayer.name.toLowerCase()} layer`
-                    }
-                    title={
-                      selectedLayer.visible
-                        ? "Delete this text box"
-                        : "Restore this text box"
-                    }
-                    onClick={() => toggleLayerVisibility(selectedLayer)}
-                    className={cn(
-                      "grid size-7 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                      selectedLayer.visible
-                        ? "border-black/10 bg-white text-black/45 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                        : "border-[#4758c7]/30 bg-[#eef0ff] text-[#4758c7]"
-                    )}
-                  >
-                    {selectedLayer.visible ? (
-                      <Trash2 className="size-3.5" />
-                    ) : (
-                      <Eye className="size-3.5" />
-                    )}
-                  </button>
-                </div>
-
                 <div>
                   <p className="mb-2 text-[11px] font-medium text-black/50">
                     Font
@@ -1434,17 +1463,6 @@ export function SlideshowStudio() {
                   {activeSlide.image ? "Upload replacement" : "Upload image"}
                 </Button>
               </div>
-              {activeSlide.image && (
-                <div className="mt-2 flex justify-end">
-                  <button
-                    type="button"
-                    className="text-[11px] font-medium text-red-700 hover:underline focus-visible:outline-2"
-                    onClick={() => updateActiveSlide({ image: null })}
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="space-y-4">
