@@ -85,7 +85,7 @@ export function HooksCanvas() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
       <div className="h-fit rounded-2xl border border-black/10 bg-white p-4">
         <ProductProfilePicker
           value={selectedProduct}

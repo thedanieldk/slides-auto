@@ -167,7 +167,7 @@ export function ProductProfilePicker({
   }
 
   return (
-    <fieldset className="mb-6">
+    <fieldset className="mb-6 min-w-0">
       <legend className="mb-3 text-xs font-semibold text-black/60">
         Product
       </legend>
