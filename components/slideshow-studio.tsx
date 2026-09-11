@@ -123,17 +123,10 @@ export function SlideshowStudio() {
     slideshowThemes[0]
   const hookLayer = getTextLayer(activeSlide, "hook")
   const bodyLayer = getTextLayer(activeSlide, "body")
+  const appliedTextStyle = getAppliedTextStyle(project.slides)
 
   function isTextStyleActive(textStyleId: TextStyleId) {
-    if (textStyleId !== "yellow-cover") {
-      return activeSlide.layoutId === textStyleId
-    }
-
-    return project.slides.every((slide, index) =>
-      index === 0
-        ? slide.layoutId === "yellow-cover"
-        : slide.layoutId === "yellow-continuation"
-    )
+    return appliedTextStyle === textStyleId
   }
 
   function updateProject(
@@ -173,7 +166,13 @@ export function SlideshowStudio() {
 
   function addSlide() {
     updateProject((current) => {
-      const nextSlide = createSlide(current.slides.length + 1)
+      const currentTextStyle = getAppliedTextStyle(current.slides)
+      const nextSlide = createSlide(
+        current.slides.length + 1,
+        currentTextStyle
+          ? resolveCarouselTextStyle(currentTextStyle, current.slides.length)
+          : "clean-white"
+      )
       return {
         ...current,
         slides: [...current.slides, nextSlide],
@@ -227,27 +226,14 @@ export function SlideshowStudio() {
     })
   }
 
-  function selectTextStyle(textStyleId: TextStyleId, applyToAll = false) {
-    const applyAcrossCarousel = applyToAll || textStyleId === "yellow-cover"
-
+  function selectTextStyle(textStyleId: TextStyleId) {
     updateProject((current) => ({
       ...current,
-      slides: current.slides.map((slide, index) => {
-        if (!applyAcrossCarousel && slide.id !== current.activeSlideId) {
-          return slide
-        }
-
-        const resolvedStyle = applyAcrossCarousel
-          ? resolveCarouselTextStyle(textStyleId, index)
-          : textStyleId
-        return applySlideLayout(slide, resolvedStyle)
-      }),
+      slides: current.slides.map((slide, index) =>
+        applySlideLayout(slide, resolveCarouselTextStyle(textStyleId, index))
+      ),
     }))
-    setNotice(
-      applyAcrossCarousel
-        ? `Text style applied to all ${project.slides.length} slides.`
-        : `Text style applied to slide ${activeIndex + 1}.`
-    )
+    setNotice(`Text style applied to all ${project.slides.length} slides.`)
   }
 
   function applyComposition(result: CompositionResult) {
@@ -741,21 +727,6 @@ export function SlideshowStudio() {
                 </button>
               ))}
             </div>
-            <Button
-              variant="outline"
-              className="mt-2 w-full"
-              onClick={() => {
-                const activeTextStyle = textStyles.find((textStyle) =>
-                  isTextStyleActive(textStyle.id)
-                )
-                if (activeTextStyle) selectTextStyle(activeTextStyle.id, true)
-              }}
-              disabled={
-                !textStyles.some((textStyle) => isTextStyleActive(textStyle.id))
-              }
-            >
-              Apply to every slide
-            </Button>
           </fieldset>
 
           <div className="mb-6">
@@ -877,6 +848,21 @@ export function SlideshowStudio() {
 
 function getSlideImageQuery() {
   return DEFAULT_IMAGE_QUERY
+}
+
+function getAppliedTextStyle(slides: SlideshowSlide[]): TextStyleId | null {
+  const hasYellowCover = slides.every((slide, index) =>
+    index === 0
+      ? slide.layoutId === "yellow-cover"
+      : slide.layoutId === "yellow-continuation"
+  )
+  if (hasYellowCover) return "yellow-cover"
+
+  return (
+    textStyles.find((textStyle) =>
+      slides.every((slide) => slide.layoutId === textStyle.id)
+    )?.id ?? null
+  )
 }
 
 function toSlideImage(result: ImageSearchResult): SlideImage {

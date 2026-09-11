@@ -260,8 +260,7 @@ The current studio supports:
 
 - Editing hook and supporting text
 - Rewriting one slide with Claude while providing the previous and next hooks
-- Choosing a text style for one slide
-- Applying one text style to every slide
+- Choosing one text style for the full carousel
 - Adding, duplicating, deleting, and reordering slides
 - Searching, replacing, uploading, and removing slide images
 - Renaming the project
@@ -297,6 +296,11 @@ Text styles define the geometry and typography of the hook and body layers:
 The Label + body preset uses a familiar system-style sans face with lighter
 weights and relaxed spacing so it feels closer to casual social-app text than a
 polished brand layout.
+
+Selecting any text style updates the complete carousel immediately. New slides
+inherit the carousel's current style. Yellow cover is the exception internally:
+it applies the cover layout to slide one and its white continuation layout to
+the remaining slides as one coordinated style.
 
 The editor currently shows selected photos without a color wash or visual
 filter. Legacy theme data remains in saved projects for compatibility, but the
