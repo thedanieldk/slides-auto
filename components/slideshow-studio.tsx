@@ -243,10 +243,6 @@ export function SlideshowStudio() {
       : "block"
   const appliedTextStyle = getAppliedTextStyle(project.slides)
 
-  function isTextStyleActive(textStyleId: TextStyleId) {
-    return appliedTextStyle === textStyleId
-  }
-
   function updateProject(
     updater: (current: SlideshowProject) => SlideshowProject
   ) {
@@ -1159,34 +1155,46 @@ export function SlideshowStudio() {
               <legend className="mb-3 text-xs font-semibold text-black/60">
                 Text style
               </legend>
-              <div className="space-y-2">
-                {textStyles.map((textStyle) => (
-                  <button
-                    key={textStyle.id}
-                    type="button"
-                    onClick={() => selectTextStyle(textStyle.id)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                      isTextStyleActive(textStyle.id)
-                        ? "border-[#4758c7] bg-[#eef0ff]"
-                        : "border-black/10 bg-white hover:border-black/20"
-                    )}
-                  >
-                    <TextStyleSwatch textStyleId={textStyle.id} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold">
-                        {textStyle.name}
+              <Select
+                value={appliedTextStyle ?? undefined}
+                onValueChange={(value) => selectTextStyle(value as TextStyleId)}
+              >
+                <SelectTrigger className="h-auto w-full justify-between rounded-xl border-black/10 bg-white px-3 py-2 hover:border-black/20 focus-visible:border-[#4758c7] focus-visible:ring-[#4758c7]/10">
+                  <SelectValue placeholder="Mixed styles">
+                    {(value: TextStyleId | null) => {
+                      const textStyle = textStyles.find(
+                        (style) => style.id === value
+                      )
+                      return (
+                        <span className="flex items-center gap-2.5">
+                          {textStyle && (
+                            <TextStyleSwatch textStyleId={textStyle.id} />
+                          )}
+                          <span className="text-sm font-medium">
+                            {textStyle?.name ?? "Mixed styles"}
+                          </span>
+                        </span>
+                      )
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="border-black/10">
+                  {textStyles.map((textStyle) => (
+                    <SelectItem
+                      key={textStyle.id}
+                      value={textStyle.id}
+                      className="focus:bg-[#eef0ff] focus:text-[#4758c7] data-[highlighted]:bg-[#eef0ff] data-[highlighted]:text-[#4758c7]"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <TextStyleSwatch textStyleId={textStyle.id} />
+                        <span className="text-sm font-medium">
+                          {textStyle.name}
+                        </span>
                       </span>
-                      <span className="block truncate text-[11px] text-black/45">
-                        {textStyle.description}
-                      </span>
-                    </span>
-                    {isTextStyleActive(textStyle.id) && (
-                      <Check className="size-4 shrink-0 text-[#4758c7]" />
-                    )}
-                  </button>
-                ))}
-              </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </fieldset>
 
             {selectedLayer && selectedFont && (
