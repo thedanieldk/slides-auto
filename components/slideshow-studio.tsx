@@ -1159,7 +1159,7 @@ export function SlideshowStudio() {
                 value={appliedTextStyle ?? undefined}
                 onValueChange={(value) => selectTextStyle(value as TextStyleId)}
               >
-                <SelectTrigger className="h-auto w-full justify-between rounded-xl border-black/10 bg-white px-3 py-2 hover:border-black/20 focus-visible:border-[#4758c7] focus-visible:ring-[#4758c7]/10">
+                <SelectTrigger className="h-auto w-full justify-between rounded-xl border-black/10 bg-white px-3 py-2.5 hover:border-black/20 focus-visible:border-[#4758c7] focus-visible:ring-[#4758c7]/10">
                   <SelectValue placeholder="Mixed styles">
                     {(value: TextStyleId | null) => {
                       const textStyle = textStyles.find(
@@ -1168,7 +1168,10 @@ export function SlideshowStudio() {
                       return (
                         <span className="flex items-center gap-2.5">
                           {textStyle && (
-                            <TextStyleSwatch textStyleId={textStyle.id} />
+                            <TextStyleSwatch
+                              textStyleId={textStyle.id}
+                              size="sm"
+                            />
                           )}
                           <span className="text-sm font-medium">
                             {textStyle?.name ?? "Mixed styles"}
@@ -1837,9 +1840,20 @@ function EditorRange({
   )
 }
 
-function TextStyleSwatch({ textStyleId }: { textStyleId: TextStyleId }) {
+function TextStyleSwatch({
+  textStyleId,
+  size = "md",
+}: {
+  textStyleId: TextStyleId
+  size?: "sm" | "md"
+}) {
   return (
-    <span className="relative block size-10 shrink-0 overflow-hidden rounded-lg bg-[linear-gradient(145deg,#8e8478,#3f453d)] ring-1 ring-black/10">
+    <span
+      className={cn(
+        "relative block shrink-0 overflow-hidden rounded-lg bg-[linear-gradient(145deg,#8e8478,#3f453d)] ring-1 ring-black/10",
+        size === "sm" ? "size-7" : "size-10"
+      )}
+    >
       <span
         className={cn(
           "absolute block",
