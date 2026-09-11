@@ -1,5 +1,5 @@
-import { SlideshowStudio } from "@/components/slideshow-studio"
+import { SlideshowLibrary } from "@/components/slideshow-library"
 
 export default function Page() {
-  return <SlideshowStudio />
+  return <SlideshowLibrary />
 }

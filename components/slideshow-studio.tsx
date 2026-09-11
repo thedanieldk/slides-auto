@@ -31,6 +31,8 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 
@@ -53,12 +55,15 @@ import {
   type ImageSearchResult,
 } from "@/lib/images/image-provider"
 import {
+  createBlankProject,
+  loadProject,
+  saveProject,
+} from "@/lib/project-storage"
+import {
   applySlideLayout,
-  createProject,
   createSlide,
   getTextLayer,
   getTextShadow,
-  loadSlideshowProject,
   resolveLayerColor,
   resolveCarouselTextStyle,
   slideshowThemes,
@@ -73,8 +78,6 @@ import {
   type TextLayerStyle,
   type TextStyleId,
 } from "@/lib/slideshow"
-
-const STORAGE_KEY = "slides-auto.phase-one-project"
 
 const FONT_OPTIONS = [
   {
@@ -128,7 +131,8 @@ function cloneStarterProject() {
   return structuredClone(starterProject)
 }
 
-export function SlideshowStudio() {
+export function SlideshowStudio({ projectId }: { projectId: string }) {
+  const router = useRouter()
   const [project, setProject] = useState<SlideshowProject>(cloneStarterProject)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">(
@@ -151,32 +155,25 @@ export function SlideshowStudio() {
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
 
   useEffect(() => {
-    const storedProject = window.localStorage.getItem(STORAGE_KEY)
-    const loadProject = window.setTimeout(() => {
-      if (storedProject) {
-        try {
-          const parsedProject: unknown = JSON.parse(storedProject)
-          const loadedProject = loadSlideshowProject(parsedProject)
-          if (loadedProject) setProject(loadedProject)
-        } catch {
-          setNotice(
-            "The saved project could not be opened. A starter is loaded."
-          )
-        }
+    const loadTimeout = window.setTimeout(() => {
+      const loadedProject = loadProject(projectId)
+      if (loadedProject) {
+        setProject(loadedProject)
+        setHasLoaded(true)
+      } else {
+        router.replace("/")
       }
-
-      setHasLoaded(true)
     }, 0)
 
-    return () => window.clearTimeout(loadProject)
-  }, [])
+    return () => window.clearTimeout(loadTimeout)
+  }, [projectId, router])
 
   useEffect(() => {
     if (!hasLoaded) return
 
     const timeout = window.setTimeout(() => {
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(project))
+        saveProject(project)
         setSaveState("saved")
       } catch {
         setSaveState("failed")
@@ -603,13 +600,8 @@ export function SlideshowStudio() {
   }
 
   function startNewProject() {
-    const shouldReplace = window.confirm(
-      "Start a new slideshow? This replaces the project saved in this browser."
-    )
-    if (!shouldReplace) return
-
-    setProject(createProject())
-    setNotice("New slideshow created.")
+    const newProject = createBlankProject()
+    router.push(`/slideshow/${newProject.id}`)
   }
 
   function restoreStarter() {
@@ -618,7 +610,7 @@ export function SlideshowStudio() {
     )
     if (!shouldReplace) return
 
-    setProject(cloneStarterProject())
+    setProject({ ...cloneStarterProject(), id: project.id })
     setNotice("Starter slideshow restored.")
   }
 
@@ -753,9 +745,13 @@ export function SlideshowStudio() {
     <main className="min-h-svh bg-[#e9e7e2] text-[#1b1c24]">
       <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b border-black/10 bg-[#f8f7f4]/95 px-4 py-3 backdrop-blur md:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#4758c7] text-white shadow-[0_6px_18px_rgba(71,88,199,.22)]">
+          <Link
+            href="/"
+            aria-label="Back to slideshows"
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#4758c7] text-white shadow-[0_6px_18px_rgba(71,88,199,.22)] transition hover:bg-[#3e4db0]"
+          >
             <Layers3 className="size-4.5" aria-hidden="true" />
-          </div>
+          </Link>
           <div className="min-w-0">
             <p className="text-xs font-medium text-black/45">Slides Auto</p>
             <input
@@ -1662,7 +1658,7 @@ function getTextLayerContentStyle(layer: TextLayer): CSSProperties | undefined {
 const EXPORT_WIDTH = 1080
 const EXPORT_HEIGHT = 1920
 
-function SlideExportCard({
+export function SlideExportCard({
   slide,
   theme,
 }: {
