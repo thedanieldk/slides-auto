@@ -1439,8 +1439,7 @@ export function SlideshowStudio() {
                   Search Pexels
                 </Button>
                 <Button
-                  variant="outline"
-                  className="w-full rounded-xl border-black/10 bg-white hover:border-black/20 hover:bg-white"
+                  className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
                   onClick={() => void autoFillMissingImages()}
                   disabled={isAutoFillingImages}
                 >
@@ -1455,8 +1454,7 @@ export function SlideshowStudio() {
                   Auto-fill missing images
                 </Button>
                 <Button
-                  variant="outline"
-                  className="w-full rounded-xl border-black/10 bg-white hover:border-black/20 hover:bg-white"
+                  className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <ImagePlus data-icon="inline-start" />
