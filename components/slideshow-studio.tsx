@@ -732,8 +732,8 @@ export function SlideshowStudio() {
         )}
       </AnimatePresence>
 
-      <div className="grid min-h-[calc(100svh-4rem)] lg:grid-cols-[14rem_minmax(0,1fr)_19rem]">
-        <aside className="border-b border-black/10 bg-[#f3f1ed] p-4 lg:border-r lg:border-b-0">
+      <div className="grid min-h-[calc(100svh-4rem)] lg:h-[calc(100svh-4rem)] lg:grid-cols-[14rem_minmax(0,1fr)_19rem] lg:overflow-hidden">
+        <aside className="border-b border-black/10 bg-[#f3f1ed] p-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:border-r lg:border-b-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Slides</h2>
             <span className="text-xs text-black/45 tabular-nums">
@@ -741,96 +741,98 @@ export function SlideshowStudio() {
             </span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 lg:max-h-[calc(100svh-10rem)] lg:flex-col lg:overflow-y-auto lg:pr-1">
-            <AnimatePresence initial={false}>
-              {project.slides.map((slide, index) => (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.94 }}
-                  key={slide.id}
-                  className="w-32 shrink-0 lg:w-full"
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateProject((current) => ({
-                        ...current,
-                        activeSlideId: slide.id,
-                      }))
-                    }
-                    className={cn(
-                      "group relative w-full rounded-xl border p-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                      slide.id === project.activeSlideId
-                        ? "border-[#4758c7] bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)]"
-                        : "border-black/10 bg-white/45 hover:bg-white/75"
-                    )}
+          <div className="lg:relative lg:min-h-0 lg:flex-1">
+            <div className="flex gap-3 overflow-x-auto pb-2 lg:absolute lg:inset-0 lg:flex-col lg:overflow-y-auto lg:pr-1">
+              <AnimatePresence initial={false}>
+                {project.slides.map((slide, index) => (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    key={slide.id}
+                    className="w-32 shrink-0 lg:w-full"
                   >
-                    <span
-                      className="relative block aspect-[9/12] overflow-hidden rounded-lg"
-                      style={{
-                        background: activeTheme.background,
-                        containerType: "inline-size",
-                      }}
-                    >
-                      {slide.image && (
-                        <span
-                          className="absolute inset-0 bg-cover bg-center"
-                          style={{
-                            backgroundImage: `url(${JSON.stringify(slide.image.dataUrl)})`,
-                          }}
-                        />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateProject((current) => ({
+                          ...current,
+                          activeSlideId: slide.id,
+                        }))
+                      }
+                      className={cn(
+                        "group relative w-full rounded-xl border p-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                        slide.id === project.activeSlideId
+                          ? "border-[#4758c7] bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)]"
+                          : "border-black/10 bg-white/45 hover:bg-white/75"
                       )}
-                      {slide.textLayers.map(
-                        (layer) =>
-                          layer.visible && (
-                            <span
-                              key={layer.id}
-                              className="absolute z-10 overflow-hidden text-pretty"
-                              style={getTextLayerStyle(layer, activeTheme)}
-                            >
-                              <span style={getTextLayerContentStyle(layer)}>
-                                {layer.text}
+                    >
+                      <span
+                        className="relative block aspect-[9/12] overflow-hidden rounded-lg"
+                        style={{
+                          background: activeTheme.background,
+                          containerType: "inline-size",
+                        }}
+                      >
+                        {slide.image && (
+                          <span
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={{
+                              backgroundImage: `url(${JSON.stringify(slide.image.dataUrl)})`,
+                            }}
+                          />
+                        )}
+                        {slide.textLayers.map(
+                          (layer) =>
+                            layer.visible && (
+                              <span
+                                key={layer.id}
+                                className="absolute z-10 overflow-hidden text-pretty"
+                                style={getTextLayerStyle(layer, activeTheme)}
+                              >
+                                <span style={getTextLayerContentStyle(layer)}>
+                                  {layer.text}
+                                </span>
                               </span>
-                            </span>
-                          )
-                      )}
-                    </span>
-                  </button>
+                            )
+                        )}
+                      </span>
+                    </button>
 
-                  <div className="mt-1 flex items-center justify-end gap-0.5 text-black/40">
-                    <SlideAction
-                      label="Move slide up"
-                      disabled={index === 0}
-                      onClick={() => moveSlide(slide.id, -1)}
-                    >
-                      <ArrowUp />
-                    </SlideAction>
-                    <SlideAction
-                      label="Move slide down"
-                      disabled={index === project.slides.length - 1}
-                      onClick={() => moveSlide(slide.id, 1)}
-                    >
-                      <ArrowDown />
-                    </SlideAction>
-                    <SlideAction
-                      label="Duplicate slide"
-                      onClick={() => duplicateSlide(slide.id)}
-                    >
-                      <Copy />
-                    </SlideAction>
-                    <SlideAction
-                      label="Delete slide"
-                      disabled={project.slides.length === 1}
-                      onClick={() => removeSlide(slide.id)}
-                    >
-                      <Trash2 />
-                    </SlideAction>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                    <div className="mt-1 flex items-center justify-end gap-0.5 text-black/40">
+                      <SlideAction
+                        label="Move slide up"
+                        disabled={index === 0}
+                        onClick={() => moveSlide(slide.id, -1)}
+                      >
+                        <ArrowUp />
+                      </SlideAction>
+                      <SlideAction
+                        label="Move slide down"
+                        disabled={index === project.slides.length - 1}
+                        onClick={() => moveSlide(slide.id, 1)}
+                      >
+                        <ArrowDown />
+                      </SlideAction>
+                      <SlideAction
+                        label="Duplicate slide"
+                        onClick={() => duplicateSlide(slide.id)}
+                      >
+                        <Copy />
+                      </SlideAction>
+                      <SlideAction
+                        label="Delete slide"
+                        disabled={project.slides.length === 1}
+                        onClick={() => removeSlide(slide.id)}
+                      >
+                        <Trash2 />
+                      </SlideAction>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
           </div>
 
           <Button className="mt-3 w-full" variant="outline" onClick={addSlide}>
@@ -969,396 +971,403 @@ export function SlideshowStudio() {
           </AnimatePresence>
         </section>
 
-        <aside className="border-t border-black/10 bg-[#f8f7f4] p-5 lg:max-h-[calc(100svh-4rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l">
-          <div className="mb-6">
-            <div className="mb-1 flex items-center gap-2">
-              <Sparkles className="size-4 text-[#f06f5d]" aria-hidden="true" />
-              <h2 className="text-sm font-semibold">Slide setup</h2>
-            </div>
-            <p className="text-xs leading-relaxed text-black/45">
-              Changes are saved in this browser. AI rewrites stay fully
-              editable.
-            </p>
-            <Button
-              variant="outline"
-              className="mt-3 w-full"
-              disabled={regeneratingSlideId !== null}
-              onClick={() => void regenerateActiveSlide()}
-            >
-              {regeneratingSlideId === activeSlide.id ? (
-                <LoaderCircle
-                  data-icon="inline-start"
-                  className="animate-spin"
+        <aside className="relative border-t border-black/10 bg-[#f8f7f4] lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
+          <div className="p-5 lg:absolute lg:inset-0 lg:overflow-y-auto">
+            <div className="mb-6">
+              <div className="mb-1 flex items-center gap-2">
+                <Sparkles
+                  className="size-4 text-[#f06f5d]"
+                  aria-hidden="true"
                 />
-              ) : (
-                <Sparkles data-icon="inline-start" />
-              )}
-              {regeneratingSlideId === activeSlide.id
-                ? "Rewriting…"
-                : "Rewrite this slide"}
-            </Button>
-          </div>
-
-          <fieldset className="mb-6">
-            <legend className="mb-3 text-xs font-semibold text-black/60">
-              Text style
-            </legend>
-            <div className="space-y-2">
-              {textStyles.map((textStyle) => (
-                <button
-                  key={textStyle.id}
-                  type="button"
-                  onClick={() => selectTextStyle(textStyle.id)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                    isTextStyleActive(textStyle.id)
-                      ? "border-[#4758c7] bg-[#eef0ff]"
-                      : "border-black/10 bg-white hover:border-black/20"
-                  )}
-                >
-                  <TextStyleSwatch textStyleId={textStyle.id} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold">
-                      {textStyle.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-black/45">
-                      {textStyle.description}
-                    </span>
-                  </span>
-                  {isTextStyleActive(textStyle.id) && (
-                    <Check className="size-4 shrink-0 text-[#4758c7]" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {selectedLayer && selectedFont && (
-            <fieldset className="mb-6 border-t border-black/10 pt-5">
-              <legend className="sr-only">Selected text layer</legend>
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-black/60">
-                    {selectedLayer.name} layer
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-black/45">
-                    Drag to move · use the corner to resize · double-click or
-                    double-tap to type
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[#eef0ff] px-2 py-1 text-[10px] font-medium text-[#4758c7]">
-                  {selectedFont.name} selected
-                </span>
+                <h2 className="text-sm font-semibold">Slide setup</h2>
               </div>
-
-              <div>
-                <p className="mb-2 text-[11px] font-medium text-black/50">
-                  Font
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {FONT_OPTIONS.map((font) => {
-                    const isSelected = font.id === selectedFont.id
-
-                    return (
-                      <button
-                        key={font.id}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() =>
-                          updateSelectedLayerStyle({ fontFamily: font.id })
-                        }
-                        className={cn(
-                          "relative rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-                          isSelected
-                            ? "border-[#4758c7] bg-[#eef0ff]"
-                            : "border-black/10 bg-white hover:border-black/20"
-                        )}
-                      >
-                        <span
-                          className="block truncate text-sm"
-                          style={{ fontFamily: font.stack }}
-                        >
-                          {font.sample}
-                        </span>
-                        <span className="mt-0.5 block text-[10px] text-black/45">
-                          {font.name}
-                        </span>
-                        {isSelected && (
-                          <Check className="absolute top-2 right-2 size-3.5 text-[#4758c7]" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <label className="mt-4 block">
-                <span className="mb-2 flex items-center justify-between text-[11px] font-medium text-black/50">
-                  <span>Font size</span>
-                  <span className="tabular-nums">
-                    {selectedLayer.style.fontSize.toFixed(1)}
-                  </span>
-                </span>
-                <input
-                  type="range"
-                  min="2"
-                  max="14"
-                  step="0.1"
-                  value={selectedLayer.style.fontSize}
-                  onChange={(event) =>
-                    updateSelectedLayerStyle({
-                      fontSize: Number(event.target.value),
-                    })
-                  }
-                  className="w-full accent-[#4758c7]"
-                />
-              </label>
-
-              <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3">
-                <div>
-                  <p className="mb-2 text-[11px] font-medium text-black/50">
-                    Alignment
-                  </p>
-                  <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1">
-                    {(
-                      [
-                        ["left", AlignLeft],
-                        ["center", AlignCenter],
-                        ["right", AlignRight],
-                      ] as const
-                    ).map(([alignment, Icon]) => (
-                      <button
-                        key={alignment}
-                        type="button"
-                        aria-label={`Align ${alignment}`}
-                        aria-pressed={selectedLayer.style.align === alignment}
-                        onClick={() =>
-                          updateSelectedLayerStyle({ align: alignment })
-                        }
-                        className={cn(
-                          "grid h-8 place-items-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
-                          selectedLayer.style.align === alignment
-                            ? "bg-[#eef0ff] text-[#4758c7]"
-                            : "text-black/45 hover:bg-black/5"
-                        )}
-                      >
-                        <Icon className="size-4" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label>
-                  <span className="mb-2 block text-[11px] font-medium text-black/50">
-                    Text
-                  </span>
-                  <input
-                    type="color"
-                    aria-label="Text color"
-                    value={getColorInputValue(
-                      selectedLayer.style.color.type === "custom"
-                        ? selectedLayer.style.color.value
-                        : resolveLayerColor(
-                            selectedLayer.style.color,
-                            activeTheme
-                          ),
-                      "#ffffff"
-                    )}
-                    onChange={(event) =>
-                      updateSelectedLayerStyle({
-                        color: { type: "custom", value: event.target.value },
-                      })
-                    }
-                    className="h-10 w-12 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-4">
-                <p className="mb-2 text-[11px] font-medium text-black/50">
-                  Text box
-                </p>
-                <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1 text-[11px] font-medium">
-                  {(
-                    [
-                      ["none", "None"],
-                      ["line", "Behind text"],
-                      ["block", "Full box"],
-                    ] as const
-                  ).map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      aria-pressed={selectedBackgroundMode === mode}
-                      onClick={() => selectBackgroundMode(mode)}
-                      className={cn(
-                        "min-h-9 rounded-lg px-1 transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
-                        selectedBackgroundMode === mode
-                          ? "bg-[#eef0ff] text-[#4758c7]"
-                          : "text-black/45 hover:bg-black/5"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {selectedBackgroundMode !== "none" && (
-                <div className="mt-3 rounded-xl border border-black/10 bg-white p-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-medium text-black/50">
-                      Box color
-                    </span>
-                    <input
-                      type="color"
-                      aria-label="Text box color"
-                      value={getColorInputValue(
-                        selectedLayer.style.backgroundColor,
-                        "#ffffff"
-                      )}
-                      onChange={(event) =>
-                        updateSelectedLayerStyle({
-                          backgroundColor: event.target.value,
-                        })
-                      }
-                      className="h-8 w-11 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
-                    />
-                  </div>
-                  <EditorRange
-                    label="Opacity"
-                    value={getBackgroundOpacity(selectedLayer)}
-                    display={`${Math.round(getBackgroundOpacity(selectedLayer) * 100)}%`}
-                    min={0.1}
-                    max={1}
-                    step={0.05}
-                    onChange={(backgroundOpacity) =>
-                      updateSelectedLayerStyle({ backgroundOpacity })
-                    }
-                  />
-                  <EditorRange
-                    label="Padding"
-                    value={selectedLayer.style.padding ?? 0}
-                    display={(selectedLayer.style.padding ?? 0).toFixed(1)}
-                    min={0}
-                    max={4}
-                    step={0.1}
-                    onChange={(padding) =>
-                      updateSelectedLayerStyle({ padding })
-                    }
-                  />
-                  <EditorRange
-                    label="Corners"
-                    value={selectedLayer.style.borderRadius ?? 0}
-                    display={(selectedLayer.style.borderRadius ?? 0).toFixed(1)}
-                    min={0}
-                    max={5}
-                    step={0.1}
-                    onChange={(borderRadius) =>
-                      updateSelectedLayerStyle({ borderRadius })
-                    }
-                  />
-                </div>
-              )}
-            </fieldset>
-          )}
-
-          <div className="mb-6">
-            <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
-            <input
-              ref={fileInputRef}
-              className="sr-only"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={(event) => {
-                handleImageUpload(event.target.files?.[0])
-                event.target.value = ""
-              }}
-            />
-            <div className="space-y-2">
-              <Button
-                className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
-                onClick={() => setImageSearchOpen(true)}
-              >
-                <Search data-icon="inline-start" />
-                Search Pexels
-              </Button>
+              <p className="text-xs leading-relaxed text-black/45">
+                Changes are saved in this browser. AI rewrites stay fully
+                editable.
+              </p>
               <Button
                 variant="outline"
-                className="w-full"
-                onClick={() => void autoFillMissingImages()}
-                disabled={isAutoFillingImages}
+                className="mt-3 w-full"
+                disabled={regeneratingSlideId !== null}
+                onClick={() => void regenerateActiveSlide()}
               >
-                {isAutoFillingImages ? (
+                {regeneratingSlideId === activeSlide.id ? (
                   <LoaderCircle
                     data-icon="inline-start"
                     className="animate-spin"
                   />
                 ) : (
-                  <Images data-icon="inline-start" />
+                  <Sparkles data-icon="inline-start" />
                 )}
-                Auto-fill missing images
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImagePlus data-icon="inline-start" />
-                {activeSlide.image ? "Upload replacement" : "Upload image"}
+                {regeneratingSlideId === activeSlide.id
+                  ? "Rewriting…"
+                  : "Rewrite this slide"}
               </Button>
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-black/45">
-              Suggested search: {getSlideImageQuery()}
-            </p>
-            {activeSlide.image && (
-              <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
-                <span className="truncate">{activeSlide.image.name}</span>
-                <button
-                  type="button"
-                  className="font-medium text-red-700 hover:underline focus-visible:outline-2"
-                  onClick={() => updateActiveSlide({ image: null })}
-                >
-                  Remove
-                </button>
+
+            <fieldset className="mb-6">
+              <legend className="mb-3 text-xs font-semibold text-black/60">
+                Text style
+              </legend>
+              <div className="space-y-2">
+                {textStyles.map((textStyle) => (
+                  <button
+                    key={textStyle.id}
+                    type="button"
+                    onClick={() => selectTextStyle(textStyle.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                      isTextStyleActive(textStyle.id)
+                        ? "border-[#4758c7] bg-[#eef0ff]"
+                        : "border-black/10 bg-white hover:border-black/20"
+                    )}
+                  >
+                    <TextStyleSwatch textStyleId={textStyle.id} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold">
+                        {textStyle.name}
+                      </span>
+                      <span className="block truncate text-[11px] text-black/45">
+                        {textStyle.description}
+                      </span>
+                    </span>
+                    {isTextStyleActive(textStyle.id) && (
+                      <Check className="size-4 shrink-0 text-[#4758c7]" />
+                    )}
+                  </button>
+                ))}
               </div>
+            </fieldset>
+
+            {selectedLayer && selectedFont && (
+              <fieldset className="mb-6 border-t border-black/10 pt-5">
+                <legend className="sr-only">Selected text layer</legend>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-black/60">
+                      {selectedLayer.name} layer
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-black/45">
+                      Drag to move · use the corner to resize · double-click or
+                      double-tap to type
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[#eef0ff] px-2 py-1 text-[10px] font-medium text-[#4758c7]">
+                    {selectedFont.name} selected
+                  </span>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-[11px] font-medium text-black/50">
+                    Font
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {FONT_OPTIONS.map((font) => {
+                      const isSelected = font.id === selectedFont.id
+
+                      return (
+                        <button
+                          key={font.id}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() =>
+                            updateSelectedLayerStyle({ fontFamily: font.id })
+                          }
+                          className={cn(
+                            "relative rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                            isSelected
+                              ? "border-[#4758c7] bg-[#eef0ff]"
+                              : "border-black/10 bg-white hover:border-black/20"
+                          )}
+                        >
+                          <span
+                            className="block truncate text-sm"
+                            style={{ fontFamily: font.stack }}
+                          >
+                            {font.sample}
+                          </span>
+                          <span className="mt-0.5 block text-[10px] text-black/45">
+                            {font.name}
+                          </span>
+                          {isSelected && (
+                            <Check className="absolute top-2 right-2 size-3.5 text-[#4758c7]" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <label className="mt-4 block">
+                  <span className="mb-2 flex items-center justify-between text-[11px] font-medium text-black/50">
+                    <span>Font size</span>
+                    <span className="tabular-nums">
+                      {selectedLayer.style.fontSize.toFixed(1)}
+                    </span>
+                  </span>
+                  <input
+                    type="range"
+                    min="2"
+                    max="14"
+                    step="0.1"
+                    value={selectedLayer.style.fontSize}
+                    onChange={(event) =>
+                      updateSelectedLayerStyle({
+                        fontSize: Number(event.target.value),
+                      })
+                    }
+                    className="w-full accent-[#4758c7]"
+                  />
+                </label>
+
+                <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3">
+                  <div>
+                    <p className="mb-2 text-[11px] font-medium text-black/50">
+                      Alignment
+                    </p>
+                    <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1">
+                      {(
+                        [
+                          ["left", AlignLeft],
+                          ["center", AlignCenter],
+                          ["right", AlignRight],
+                        ] as const
+                      ).map(([alignment, Icon]) => (
+                        <button
+                          key={alignment}
+                          type="button"
+                          aria-label={`Align ${alignment}`}
+                          aria-pressed={selectedLayer.style.align === alignment}
+                          onClick={() =>
+                            updateSelectedLayerStyle({ align: alignment })
+                          }
+                          className={cn(
+                            "grid h-8 place-items-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                            selectedLayer.style.align === alignment
+                              ? "bg-[#eef0ff] text-[#4758c7]"
+                              : "text-black/45 hover:bg-black/5"
+                          )}
+                        >
+                          <Icon className="size-4" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label>
+                    <span className="mb-2 block text-[11px] font-medium text-black/50">
+                      Text
+                    </span>
+                    <input
+                      type="color"
+                      aria-label="Text color"
+                      value={getColorInputValue(
+                        selectedLayer.style.color.type === "custom"
+                          ? selectedLayer.style.color.value
+                          : resolveLayerColor(
+                              selectedLayer.style.color,
+                              activeTheme
+                            ),
+                        "#ffffff"
+                      )}
+                      onChange={(event) =>
+                        updateSelectedLayerStyle({
+                          color: { type: "custom", value: event.target.value },
+                        })
+                      }
+                      className="h-10 w-12 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4">
+                  <p className="mb-2 text-[11px] font-medium text-black/50">
+                    Text box
+                  </p>
+                  <div className="grid grid-cols-3 rounded-xl border border-black/10 bg-white p-1 text-[11px] font-medium">
+                    {(
+                      [
+                        ["none", "None"],
+                        ["line", "Behind text"],
+                        ["block", "Full box"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={selectedBackgroundMode === mode}
+                        onClick={() => selectBackgroundMode(mode)}
+                        className={cn(
+                          "min-h-9 rounded-lg px-1 transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                          selectedBackgroundMode === mode
+                            ? "bg-[#eef0ff] text-[#4758c7]"
+                            : "text-black/45 hover:bg-black/5"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedBackgroundMode !== "none" && (
+                  <div className="mt-3 rounded-xl border border-black/10 bg-white p-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[11px] font-medium text-black/50">
+                        Box color
+                      </span>
+                      <input
+                        type="color"
+                        aria-label="Text box color"
+                        value={getColorInputValue(
+                          selectedLayer.style.backgroundColor,
+                          "#ffffff"
+                        )}
+                        onChange={(event) =>
+                          updateSelectedLayerStyle({
+                            backgroundColor: event.target.value,
+                          })
+                        }
+                        className="h-8 w-11 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
+                      />
+                    </div>
+                    <EditorRange
+                      label="Opacity"
+                      value={getBackgroundOpacity(selectedLayer)}
+                      display={`${Math.round(getBackgroundOpacity(selectedLayer) * 100)}%`}
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      onChange={(backgroundOpacity) =>
+                        updateSelectedLayerStyle({ backgroundOpacity })
+                      }
+                    />
+                    <EditorRange
+                      label="Padding"
+                      value={selectedLayer.style.padding ?? 0}
+                      display={(selectedLayer.style.padding ?? 0).toFixed(1)}
+                      min={0}
+                      max={4}
+                      step={0.1}
+                      onChange={(padding) =>
+                        updateSelectedLayerStyle({ padding })
+                      }
+                    />
+                    <EditorRange
+                      label="Corners"
+                      value={selectedLayer.style.borderRadius ?? 0}
+                      display={(selectedLayer.style.borderRadius ?? 0).toFixed(
+                        1
+                      )}
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      onChange={(borderRadius) =>
+                        updateSelectedLayerStyle({ borderRadius })
+                      }
+                    />
+                  </div>
+                )}
+              </fieldset>
             )}
-          </div>
 
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-black/60">
-                Headline
-              </span>
-              <textarea
-                className="min-h-24 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
-                maxLength={120}
-                value={hookLayer?.text ?? ""}
-                onFocus={() => hookLayer && setSelectedLayerId(hookLayer.id)}
-                onChange={(event) =>
-                  hookLayer &&
-                  updateTextLayer(hookLayer.id, { text: event.target.value })
-                }
+            <div className="mb-6">
+              <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
+              <input
+                ref={fileInputRef}
+                className="sr-only"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(event) => {
+                  handleImageUpload(event.target.files?.[0])
+                  event.target.value = ""
+                }}
               />
-              <span className="mt-1 block text-right text-[10px] text-black/35 tabular-nums">
-                {hookLayer?.text.length ?? 0}/120
-              </span>
-            </label>
+              <div className="space-y-2">
+                <Button
+                  className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
+                  onClick={() => setImageSearchOpen(true)}
+                >
+                  <Search data-icon="inline-start" />
+                  Search Pexels
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void autoFillMissingImages()}
+                  disabled={isAutoFillingImages}
+                >
+                  {isAutoFillingImages ? (
+                    <LoaderCircle
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Images data-icon="inline-start" />
+                  )}
+                  Auto-fill missing images
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImagePlus data-icon="inline-start" />
+                  {activeSlide.image ? "Upload replacement" : "Upload image"}
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-black/45">
+                Suggested search: {getSlideImageQuery()}
+              </p>
+              {activeSlide.image && (
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-black/45">
+                  <span className="truncate">{activeSlide.image.name}</span>
+                  <button
+                    type="button"
+                    className="font-medium text-red-700 hover:underline focus-visible:outline-2"
+                    onClick={() => updateActiveSlide({ image: null })}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-black/60">
-                Supporting text
-              </span>
-              <textarea
-                className="min-h-20 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
-                maxLength={180}
-                value={bodyLayer?.text ?? ""}
-                onFocus={() => bodyLayer && setSelectedLayerId(bodyLayer.id)}
-                onChange={(event) =>
-                  bodyLayer &&
-                  updateTextLayer(bodyLayer.id, { text: event.target.value })
-                }
-              />
-            </label>
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-black/60">
+                  Headline
+                </span>
+                <textarea
+                  className="min-h-24 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+                  maxLength={120}
+                  value={hookLayer?.text ?? ""}
+                  onFocus={() => hookLayer && setSelectedLayerId(hookLayer.id)}
+                  onChange={(event) =>
+                    hookLayer &&
+                    updateTextLayer(hookLayer.id, { text: event.target.value })
+                  }
+                />
+                <span className="mt-1 block text-right text-[10px] text-black/35 tabular-nums">
+                  {hookLayer?.text.length ?? 0}/120
+                </span>
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-black/60">
+                  Supporting text
+                </span>
+                <textarea
+                  className="min-h-20 w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm leading-relaxed transition outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+                  maxLength={180}
+                  value={bodyLayer?.text ?? ""}
+                  onFocus={() => bodyLayer && setSelectedLayerId(bodyLayer.id)}
+                  onChange={(event) =>
+                    bodyLayer &&
+                    updateTextLayer(bodyLayer.id, { text: event.target.value })
+                  }
+                />
+              </label>
+            </div>
           </div>
         </aside>
       </div>
