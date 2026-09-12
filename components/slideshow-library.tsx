@@ -1,5 +1,6 @@
 "use client"
 
+import { UserButton } from "@clerk/nextjs"
 import { LayoutGrid, PenLine, Plus, Sparkles, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -98,6 +99,10 @@ export function SlideshowLibrary() {
             </button>
           )
         })}
+        <div className="mt-auto flex items-center gap-2 px-2 pt-4">
+          <UserButton />
+          <span className="text-xs text-black/50">Account</span>
+        </div>
       </aside>
 
       <main className="min-h-svh flex-1 px-6 py-10 md:px-10">

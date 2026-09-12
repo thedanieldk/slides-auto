@@ -6,9 +6,7 @@ import type { SlideshowSlide } from "@/lib/slideshow"
 
 export const productProfiles = pgTable("product_profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // Anonymous per-browser id for now (see lib/auth/current-user.ts). Swap
-  // the id source for a real auth user id later without touching this column.
-  userId: uuid("user_id").notNull(),
+  userId: text("user_id").notNull(),
   name: text("name").notNull(),
   niche: text("niche").notNull(),
   valueProposition: text("value_proposition").notNull(),
@@ -20,7 +18,7 @@ export const productProfiles = pgTable("product_profiles", {
 
 export const hooks = pgTable("hooks", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull(),
+  userId: text("user_id").notNull(),
   productId: uuid("product_id").references(() => productProfiles.id, {
     onDelete: "set null",
   }),
@@ -34,7 +32,7 @@ export const hooks = pgTable("hooks", {
 
 export const slideshows = pgTable("slideshows", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull(),
+  userId: text("user_id").notNull(),
   title: text("title").notNull(),
   themeId: text("theme_id").notNull(),
   activeSlideId: text("active_slide_id").notNull(),
