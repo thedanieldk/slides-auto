@@ -29,11 +29,8 @@ import {
   hookFrameworks,
   type HookFrameworkId,
 } from "@/lib/ai/frameworks"
-import {
-  listSavedHooks,
-  saveHookCopy,
-  type SavedHook,
-} from "@/lib/hooks-storage"
+import { listSavedHooks, saveHookCopy } from "@/lib/actions/hooks"
+import type { SavedHook } from "@/lib/hooks-storage"
 import { getTextLayer, textStyles, type TextStyleId } from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
@@ -82,8 +79,13 @@ export function CompositionDialog({
 
   useEffect(() => {
     if (!open) return
-    const timeout = window.setTimeout(() => setSavedHooks(listSavedHooks()), 0)
-    return () => window.clearTimeout(timeout)
+    let cancelled = false
+    void listSavedHooks().then((loaded) => {
+      if (!cancelled) setSavedHooks(loaded)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [open])
 
   async function generateCopy(hook: SavedHook) {
@@ -102,7 +104,12 @@ export function CompositionDialog({
         product: selectedProduct,
       })
 
-      setSavedHooks(saveHookCopy(hook.id, result))
+      await saveHookCopy(hook.id, result)
+      setSavedHooks((current) =>
+        current.map((item) =>
+          item.id === hook.id ? { ...item, generatedCopy: result } : item
+        )
+      )
       setCopyByHookId((current) => {
         const next = { ...current }
         delete next[hook.id]

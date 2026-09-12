@@ -29,8 +29,8 @@ import {
   deleteSavedHook,
   listSavedHooks,
   saveHookCopy,
-  type SavedHook,
-} from "@/lib/hooks-storage"
+} from "@/lib/actions/hooks"
+import type { SavedHook } from "@/lib/hooks-storage"
 import { createProjectFromComposition } from "@/lib/project-storage"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
@@ -51,10 +51,13 @@ export function HooksCanvas() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setHooks(listSavedHooks())
-    }, 0)
-    return () => window.clearTimeout(timeout)
+    let cancelled = false
+    void listSavedHooks().then((loaded) => {
+      if (!cancelled) setHooks(loaded)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const updateProduct = useCallback((product: ProductProfile | null) => {
@@ -100,7 +103,13 @@ export function HooksCanvas() {
         throw new Error("The generated hooks were incomplete. Try again.")
       }
 
-      setHooks(addSavedHooks(generated.data.hooks, framework.id))
+      setHooks(
+        await addSavedHooks(
+          generated.data.hooks,
+          framework.id,
+          selectedProduct.id
+        )
+      )
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -112,8 +121,9 @@ export function HooksCanvas() {
     }
   }
 
-  function removeHook(id: string) {
-    setHooks(deleteSavedHook(id))
+  async function removeHook(id: string) {
+    setHooks((current) => current.filter((hook) => hook.id !== id))
+    await deleteSavedHook(id)
   }
 
   function toggleHookExpanded(id: string) {
@@ -144,7 +154,12 @@ export function HooksCanvas() {
         product: selectedProduct,
       })
 
-      setHooks(saveHookCopy(hook.id, result))
+      await saveHookCopy(hook.id, result)
+      setHooks((current) =>
+        current.map((item) =>
+          item.id === hook.id ? { ...item, generatedCopy: result } : item
+        )
+      )
       setCopyByHookId((current) => {
         const next = { ...current }
         delete next[hook.id]
@@ -295,7 +310,7 @@ export function HooksCanvas() {
                               hook={hook}
                               expanded={expandedHookIds.has(hook.id)}
                               onToggleExpand={() => toggleHookExpanded(hook.id)}
-                              onDelete={() => removeHook(hook.id)}
+                              onDelete={() => void removeHook(hook.id)}
                               copyState={
                                 copyByHookId[hook.id] ??
                                 (hook.generatedCopy
