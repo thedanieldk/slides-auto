@@ -27,9 +27,13 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"]
 
+let cachedProjects: SlideshowProject[] | null = null
+
 export function SlideshowLibrary() {
   const router = useRouter()
-  const [projects, setProjects] = useState<SlideshowProject[] | null>(null)
+  const [projects, setProjects] = useState<SlideshowProject[] | null>(
+    cachedProjects
+  )
   const [composerOpen, setComposerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("formats")
   const [hasVisitedCopyTab, setHasVisitedCopyTab] = useState(false)
@@ -39,12 +43,24 @@ export function SlideshowLibrary() {
     if (tab === "copy") setHasVisitedCopyTab(true)
   }
 
+  function updateProjects(
+    next:
+      | SlideshowProject[]
+      | ((current: SlideshowProject[] | null) => SlideshowProject[] | null)
+  ) {
+    setProjects((current) => {
+      const resolved = typeof next === "function" ? next(current) : next
+      cachedProjects = resolved
+      return resolved
+    })
+  }
+
   useEffect(() => {
     let cancelled = false
     void ensureSeedProjects()
       .then(() => listProjects())
       .then((loaded) => {
-        if (!cancelled) setProjects(loaded)
+        if (!cancelled) updateProjects(loaded)
       })
     return () => {
       cancelled = true
@@ -74,7 +90,7 @@ export function SlideshowLibrary() {
     )
     if (!shouldDelete) return
 
-    setProjects(
+    updateProjects(
       (current) => current?.filter((p) => p.id !== project.id) ?? null
     )
     await deleteProject(project.id)
