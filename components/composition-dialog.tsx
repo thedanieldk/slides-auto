@@ -6,7 +6,6 @@ import {
   ChevronRight,
   FileText,
   ImageIcon,
-  Lightbulb,
   LoaderCircle,
   WandSparkles,
   X,
@@ -29,7 +28,6 @@ import {
   type GeneratedConcept,
 } from "@/lib/ai/slideshow-generation"
 import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
-import { listSavedHooks, type SavedHook } from "@/lib/hooks-storage"
 import {
   getTextLayer,
   resolveCarouselTextStyle,
@@ -44,7 +42,7 @@ type CompositionDialogProps = {
   onApply: (result: CompositionResult) => void
 }
 
-type ComposerMode = "ai" | "hook" | "script"
+type ComposerMode = "ai" | "script"
 
 export function CompositionDialog({
   open,
@@ -61,8 +59,6 @@ export function CompositionDialog({
   const [selectedConceptIndex, setSelectedConceptIndex] = useState<
     number | null
   >(null)
-  const [savedHooks, setSavedHooks] = useState<SavedHook[]>([])
-  const [selectedHookId, setSelectedHookId] = useState<string | null>(null)
   const [slideCount, setSlideCount] = useState(5)
   const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
@@ -79,12 +75,6 @@ export function CompositionDialog({
     if (open) window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose, open])
-
-  useEffect(() => {
-    if (!open) return
-    const timeout = window.setTimeout(() => setSavedHooks(listSavedHooks()), 0)
-    return () => window.clearTimeout(timeout)
-  }, [open])
 
   async function generateConcepts() {
     if (!selectedProduct) return
@@ -191,63 +181,6 @@ export function CompositionDialog({
     }
   }
 
-  async function generateSlideshowFromHook() {
-    if (!selectedProduct || selectedHookId === null) return
-    const hook = savedHooks.find((saved) => saved.id === selectedHookId)
-    if (!hook) return
-
-    setGenerationStage("slides")
-    setError(null)
-    setResult(null)
-
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "slideshow-from-hook",
-          hook: hook.text,
-          slideCount,
-          layoutId: textStyleId,
-          product: toProductDraft(selectedProduct),
-        }),
-      })
-      const payload: unknown = await response.json()
-      const responseBody = isRecord(payload) ? payload : {}
-
-      if (!response.ok) {
-        throw new Error(
-          typeof responseBody.error === "string"
-            ? responseBody.error
-            : "The AI service could not generate the slideshow."
-        )
-      }
-
-      const generated = generatedSlideshowSchema.safeParse(responseBody.data)
-      if (!generated.success) {
-        throw new Error("The generated slideshow was incomplete. Try again.")
-      }
-
-      setResult(
-        composeGeneratedSlideshow({
-          ...generated.data,
-          slides: generated.data.slides.map((slide, index) => ({
-            ...slide,
-            layoutId: resolveCarouselTextStyle(textStyleId, index),
-          })),
-        })
-      )
-    } catch (generationError) {
-      setError(
-        generationError instanceof Error
-          ? generationError.message
-          : "Something went wrong while generating the slideshow."
-      )
-    } finally {
-      setGenerationStage(null)
-    }
-  }
-
   function buildScriptPreview() {
     if (script.trim().length < 12) return
     setResult(composeScript({ script, slideCount, layoutId: textStyleId }))
@@ -269,7 +202,6 @@ export function CompositionDialog({
     setMode(value)
     setConcepts([])
     setSelectedConceptIndex(null)
-    setSelectedHookId(null)
     setResult(null)
     setError(null)
   }
@@ -286,7 +218,6 @@ export function CompositionDialog({
     setSelectedProduct(product)
     setConcepts([])
     setSelectedConceptIndex(null)
-    setSelectedHookId(null)
     setResult(null)
     setError(null)
   }, [])
@@ -323,9 +254,8 @@ export function CompositionDialog({
                   </h2>
                 </div>
                 <p className="max-w-xl text-xs leading-relaxed text-black/50">
-                  Turn a saved product into three content directions, start from
-                  a saved hook, or split copy you already have into editable
-                  slides.
+                  Turn a saved product into three content directions, or split
+                  copy you already have into editable slides.
                 </p>
               </div>
               <button
@@ -340,11 +270,10 @@ export function CompositionDialog({
 
             <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(20rem,.78fr)] lg:overflow-hidden">
               <div className="border-b border-black/10 p-5 md:p-7 lg:overflow-y-auto lg:border-r lg:border-b-0">
-                <div className="mb-5 grid grid-cols-3 rounded-xl bg-black/5 p-1">
+                <div className="mb-5 grid grid-cols-2 rounded-xl bg-black/5 p-1">
                   {(
                     [
                       ["ai", "Write with AI"],
-                      ["hook", "From a hook"],
                       ["script", "Use my script"],
                     ] as const
                   ).map(([value, label]) => (
@@ -384,13 +313,6 @@ export function CompositionDialog({
                       className="min-h-52 w-full resize-y rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-relaxed transition outline-none placeholder:text-black/28 focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
                     />
                   </label>
-                )}
-
-                {mode === "hook" && (
-                  <ProductProfilePicker
-                    value={selectedProduct}
-                    onChange={updateProduct}
-                  />
                 )}
 
                 {mode === "ai" && (
@@ -514,44 +436,40 @@ export function CompositionDialog({
                   </p>
                 )}
 
-                {mode !== "hook" && (
-                  <>
-                    <Button
-                      className="mt-5 w-full"
-                      disabled={
-                        generationStage !== null ||
-                        (mode === "ai"
-                          ? selectedProduct === null
-                          : script.trim().length < 12)
-                      }
-                      onClick={() =>
-                        mode === "ai"
-                          ? void generateConcepts()
-                          : buildScriptPreview()
-                      }
-                    >
-                      {generationStage === "concepts" ? (
-                        <LoaderCircle
-                          data-icon="inline-start"
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <WandSparkles data-icon="inline-start" />
-                      )}
-                      {generationStage === "concepts"
-                        ? "Finding directions…"
-                        : mode === "ai"
-                          ? concepts.length > 0
-                            ? "Generate 3 new concepts"
-                            : "Generate 3 concepts"
-                          : "Build preview"}
-                    </Button>
-                    {mode === "ai" && !selectedProduct && (
-                      <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
-                        Choose a saved product or add one from a link first.
-                      </p>
-                    )}
-                  </>
+                <Button
+                  className="mt-5 w-full"
+                  disabled={
+                    generationStage !== null ||
+                    (mode === "ai"
+                      ? selectedProduct === null
+                      : script.trim().length < 12)
+                  }
+                  onClick={() =>
+                    mode === "ai"
+                      ? void generateConcepts()
+                      : buildScriptPreview()
+                  }
+                >
+                  {generationStage === "concepts" ? (
+                    <LoaderCircle
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <WandSparkles data-icon="inline-start" />
+                  )}
+                  {generationStage === "concepts"
+                    ? "Finding directions…"
+                    : mode === "ai"
+                      ? concepts.length > 0
+                        ? "Generate 3 new concepts"
+                        : "Generate 3 concepts"
+                      : "Build preview"}
+                </Button>
+                {mode === "ai" && !selectedProduct && (
+                  <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
+                    Choose a saved product or add one from a link first.
+                  </p>
                 )}
               </div>
 
@@ -559,22 +477,14 @@ export function CompositionDialog({
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold">
-                      {result
-                        ? "Composition preview"
-                        : mode === "ai"
-                          ? "Choose a direction"
-                          : mode === "hook"
-                            ? "Pick a hook"
-                            : "Composition preview"}
+                      {mode === "ai" && !result
+                        ? "Choose a direction"
+                        : "Composition preview"}
                     </h3>
                     <p className="text-[11px] text-black/40">
-                      {result
-                        ? "Review the split before creating your slides."
-                        : mode === "ai"
-                          ? "AI infers three angles from the product profile."
-                          : mode === "hook"
-                            ? "Choose a saved hook, then AI writes the rest of the slides."
-                            : "Review the split before creating your slides."}
+                      {mode === "ai" && !result
+                        ? "AI infers three angles from the product profile."
+                        : "Review the split before creating your slides."}
                     </p>
                   </div>
                   {result && mode === "ai" ? (
@@ -584,14 +494,6 @@ export function CompositionDialog({
                       className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black/50 transition hover:text-black focus-visible:outline-2 focus-visible:outline-[#4758c7]"
                     >
                       Back to concepts
-                    </button>
-                  ) : result && mode === "hook" ? (
-                    <button
-                      type="button"
-                      onClick={() => setResult(null)}
-                      className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black/50 transition hover:text-black focus-visible:outline-2 focus-visible:outline-[#4758c7]"
-                    >
-                      Back to hooks
                     </button>
                   ) : result ? (
                     <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black/50">
@@ -691,57 +593,6 @@ export function CompositionDialog({
                         : `Turn this into ${slideCount} slides`}
                     </Button>
                   </>
-                ) : mode === "hook" && savedHooks.length > 0 ? (
-                  <>
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                      {savedHooks.map((hook, index) => (
-                        <HookOption
-                          key={hook.id}
-                          hook={hook}
-                          index={index}
-                          selected={selectedHookId === hook.id}
-                          onSelect={() => {
-                            setSelectedHookId(hook.id)
-                            setError(null)
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <Button
-                      className="mt-4 w-full"
-                      disabled={
-                        selectedHookId === null ||
-                        !selectedProduct ||
-                        generationStage !== null
-                      }
-                      onClick={() => void generateSlideshowFromHook()}
-                    >
-                      {generationStage === "slides" ? (
-                        <LoaderCircle
-                          data-icon="inline-start"
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <ChevronRight data-icon="inline-end" />
-                      )}
-                      {generationStage === "slides"
-                        ? "Writing slides…"
-                        : `Turn this into ${slideCount} slides`}
-                    </Button>
-                  </>
-                ) : mode === "hook" ? (
-                  <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
-                    <div>
-                      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
-                        <Lightbulb className="size-4" />
-                      </div>
-                      <p className="text-xs font-semibold">No hooks yet</p>
-                      <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
-                        Generate some in the Test tab, then come back here to
-                        pick one and write the rest of the slides.
-                      </p>
-                    </div>
-                  </div>
                 ) : (
                   <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
                     <div>
@@ -765,56 +616,6 @@ export function CompositionDialog({
         </motion.div>
       )}
     </AnimatePresence>
-  )
-}
-
-function HookOption({
-  hook,
-  index,
-  onSelect,
-  selected,
-}: {
-  hook: SavedHook
-  index: number
-  onSelect: () => void
-  selected: boolean
-}) {
-  return (
-    <motion.button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.02 }}
-      className={cn(
-        "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl border bg-white p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-        selected
-          ? "border-[#4758c7] shadow-[0_8px_24px_rgba(71,88,199,.12)]"
-          : "border-black/8 hover:border-black/20"
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute inset-y-0 left-0 w-1 transition",
-          selected ? "bg-[#4758c7]" : "bg-transparent"
-        )}
-      />
-      <span className="min-w-0 flex-1 text-sm leading-snug font-semibold">
-        {hook.text}
-      </span>
-      <span
-        className={cn(
-          "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition",
-          selected
-            ? "border-[#4758c7] bg-[#4758c7] text-white"
-            : "border-black/15 text-transparent group-hover:border-black/30"
-        )}
-      >
-        <Check className="size-3" />
-      </span>
-    </motion.button>
   )
 }
 

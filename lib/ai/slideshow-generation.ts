@@ -104,6 +104,7 @@ export const slideshowFromHookRequestSchema = z.object({
   hook: z.string().trim().min(1).max(240),
   slideCount: z.number().int().min(2).max(10),
   layoutId: z.enum(textStyleIds),
+  copyFormatId: z.enum(copyFormatIds).default("smart"),
   product: productProfileDraftSchema,
 })
 

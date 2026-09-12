@@ -160,8 +160,7 @@ export function SlideshowLibrary() {
                 <h1 className="text-2xl font-semibold">Frameworks</h1>
                 <p className="mt-1 text-sm text-black/50">
                   Pick a copy framework, generate hooks that follow its
-                  structure, then pick one in Compose to write the rest of the
-                  slides.
+                  structure, then expand one to write the full slideshow copy.
                 </p>
               </div>
               <HooksCanvas />

@@ -91,7 +91,7 @@ Slide 1's hook must stay essentially this exact line: "${request.hook}"
 Infer a natural content angle and a way to weave in the product from the hook and product profile below. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
 Fill every numbered slide field in the response format. Do not merge or omit slides.
 
-${getCopyFormatInstructions("smart")}
+${getCopyFormatInstructions(request.copyFormatId)}
 
 ${createProductContext(request.product)}
 
