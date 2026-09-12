@@ -15,7 +15,6 @@ import {
   createBlankProject,
   createProjectFromComposition,
   deleteProject,
-  ensureSeedProjects,
   listProjects,
 } from "@/lib/actions/slideshows"
 import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
@@ -27,13 +26,13 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"]
 
-let cachedProjects: SlideshowProject[] | null = null
+type SlideshowLibraryProps = {
+  initialProjects: SlideshowProject[]
+}
 
-export function SlideshowLibrary() {
+export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
   const router = useRouter()
-  const [projects, setProjects] = useState<SlideshowProject[] | null>(
-    cachedProjects
-  )
+  const [projects, setProjects] = useState<SlideshowProject[]>(initialProjects)
   const [composerOpen, setComposerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("formats")
   const [hasVisitedCopyTab, setHasVisitedCopyTab] = useState(false)
@@ -43,25 +42,11 @@ export function SlideshowLibrary() {
     if (tab === "copy") setHasVisitedCopyTab(true)
   }
 
-  function updateProjects(
-    next:
-      | SlideshowProject[]
-      | ((current: SlideshowProject[] | null) => SlideshowProject[] | null)
-  ) {
-    setProjects((current) => {
-      const resolved = typeof next === "function" ? next(current) : next
-      cachedProjects = resolved
-      return resolved
-    })
-  }
-
   useEffect(() => {
     let cancelled = false
-    void ensureSeedProjects()
-      .then(() => listProjects())
-      .then((loaded) => {
-        if (!cancelled) updateProjects(loaded)
-      })
+    void listProjects().then((loaded) => {
+      if (!cancelled) setProjects(loaded)
+    })
     return () => {
       cancelled = true
     }
@@ -90,9 +75,7 @@ export function SlideshowLibrary() {
     )
     if (!shouldDelete) return
 
-    updateProjects(
-      (current) => current?.filter((p) => p.id !== project.id) ?? null
-    )
+    setProjects((current) => current.filter((p) => p.id !== project.id))
     await deleteProject(project.id)
   }
 
@@ -132,7 +115,7 @@ export function SlideshowLibrary() {
           <div hidden={activeTab !== "formats"}>
             <div className="mb-6 flex items-center justify-between gap-4">
               <h1 className="text-2xl font-semibold">
-                Slideshows{projects && ` (${projects.length})`}
+                Slideshows ({projects.length})
               </h1>
               <Button
                 className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
@@ -144,7 +127,7 @@ export function SlideshowLibrary() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {projects?.map((project) => {
+              {projects.map((project) => {
                 const theme =
                   slideshowThemes.find((t) => t.id === project.themeId) ??
                   slideshowThemes[0]
