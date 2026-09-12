@@ -31,7 +31,7 @@ import {
   saveHookCopy,
 } from "@/lib/actions/hooks"
 import type { SavedHook } from "@/lib/hooks-storage"
-import { createProjectFromComposition } from "@/lib/project-storage"
+import { createProjectFromComposition } from "@/lib/actions/slideshows"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
 export function HooksCanvas() {
@@ -179,8 +179,8 @@ export function HooksCanvas() {
     }
   }
 
-  function createSlideshow(result: CompositionResult) {
-    const project = createProjectFromComposition(result)
+  async function createSlideshow(result: CompositionResult) {
+    const project = await createProjectFromComposition(result)
     router.push(`/slideshow/${project.id}`)
   }
 

@@ -16,7 +16,7 @@ import {
   deleteProject,
   ensureSeedProjects,
   listProjects,
-} from "@/lib/project-storage"
+} from "@/lib/actions/slideshows"
 import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
 
 const tabs = [
@@ -33,26 +33,32 @@ export function SlideshowLibrary() {
   const [activeTab, setActiveTab] = useState<TabId>("formats")
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      ensureSeedProjects()
-      setProjects(listProjects())
-    }, 0)
-
-    return () => window.clearTimeout(timeout)
+    let cancelled = false
+    void ensureSeedProjects()
+      .then(() => listProjects())
+      .then((loaded) => {
+        if (!cancelled) setProjects(loaded)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  function addSlideshow() {
-    const project = createBlankProject()
+  async function addSlideshow() {
+    const project = await createBlankProject()
     router.push(`/slideshow/${project.id}`)
   }
 
-  function handleComposed(result: CompositionResult) {
-    const project = createProjectFromComposition(result)
+  async function handleComposed(result: CompositionResult) {
+    const project = await createProjectFromComposition(result)
     setComposerOpen(false)
     router.push(`/slideshow/${project.id}`)
   }
 
-  function removeSlideshow(event: React.MouseEvent, project: SlideshowProject) {
+  async function removeSlideshow(
+    event: React.MouseEvent,
+    project: SlideshowProject
+  ) {
     event.preventDefault()
     event.stopPropagation()
 
@@ -61,10 +67,10 @@ export function SlideshowLibrary() {
     )
     if (!shouldDelete) return
 
-    deleteProject(project.id)
     setProjects(
       (current) => current?.filter((p) => p.id !== project.id) ?? null
     )
+    await deleteProject(project.id)
   }
 
   return (
@@ -131,7 +137,9 @@ export function SlideshowLibrary() {
                         <button
                           type="button"
                           aria-label={`Delete ${project.title}`}
-                          onClick={(event) => removeSlideshow(event, project)}
+                          onClick={(event) =>
+                            void removeSlideshow(event, project)
+                          }
                           className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                         >
                           <Trash2 className="size-3.5" />
@@ -146,7 +154,7 @@ export function SlideshowLibrary() {
 
                 <button
                   type="button"
-                  onClick={addSlideshow}
+                  onClick={() => void addSlideshow()}
                   aria-label="New slideshow"
                   className="flex aspect-[9/16] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 text-black/40 transition hover:border-[#4758c7] hover:text-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
                 >

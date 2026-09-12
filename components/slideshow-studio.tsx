@@ -17,6 +17,7 @@ import {
   LoaderCircle,
   Plus,
   RotateCcw,
+  Save,
   Search,
   Sparkles,
   Trash2,
@@ -58,7 +59,7 @@ import {
   createBlankProject,
   loadProject,
   saveProject,
-} from "@/lib/project-storage"
+} from "@/lib/actions/slideshows"
 import {
   applySlideLayout,
   createSlide,
@@ -154,36 +155,47 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
 
   useEffect(() => {
-    const loadTimeout = window.setTimeout(() => {
-      const loadedProject = loadProject(projectId)
+    let cancelled = false
+    void loadProject(projectId).then((loadedProject) => {
+      if (cancelled) return
       if (loadedProject) {
         setProject(loadedProject)
         setHasLoaded(true)
       } else {
         router.replace("/")
       }
-    }, 0)
+    })
 
-    return () => window.clearTimeout(loadTimeout)
+    return () => {
+      cancelled = true
+    }
   }, [projectId, router])
 
   useEffect(() => {
     if (!hasLoaded) return
 
     const timeout = window.setTimeout(() => {
-      try {
-        saveProject(project)
-        setSaveState("saved")
-      } catch {
-        setSaveState("failed")
-        setNotice(
-          "Local storage is full. Remove large images before continuing."
-        )
-      }
-    }, 250)
+      void saveProject(project)
+        .then(() => setSaveState("saved"))
+        .catch(() => {
+          setSaveState("failed")
+          setNotice("Could not save. Check your connection and try again.")
+        })
+    }, 800)
 
     return () => window.clearTimeout(timeout)
   }, [hasLoaded, project])
+
+  async function saveNow() {
+    setSaveState("saving")
+    try {
+      await saveProject(project)
+      setSaveState("saved")
+    } catch {
+      setSaveState("failed")
+      setNotice("Could not save. Check your connection and try again.")
+    }
+  }
 
   useEffect(() => {
     const editor = inlineEditorRef.current
@@ -581,14 +593,14 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     }
   }
 
-  function startNewProject() {
-    const newProject = createBlankProject()
+  async function startNewProject() {
+    const newProject = await createBlankProject()
     router.push(`/slideshow/${newProject.id}`)
   }
 
   function restoreStarter() {
     const shouldReplace = window.confirm(
-      "Restore the three-slide starter? Your current local project will be replaced."
+      "Restore the three-slide starter? Your current project will be replaced."
     )
     if (!shouldReplace) return
 
@@ -603,7 +615,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setNotice("Choose an image smaller than 5 MB for browser-only storage.")
+      setNotice("Choose an image smaller than 5 MB.")
       return
     }
 
@@ -763,9 +775,22 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
           >
             {saveState === "saved" && <Check className="size-3.5" />}
             {saveState === "saving" ? "Saving…" : null}
-            {saveState === "saved" ? "Saved locally" : null}
+            {saveState === "saved" ? "Saved" : null}
             {saveState === "failed" ? "Not saved" : null}
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={saveState === "saving"}
+            onClick={() => void saveNow()}
+          >
+            {saveState === "saving" ? (
+              <LoaderCircle data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Save data-icon="inline-start" />
+            )}
+            <span className="hidden sm:inline">Save</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -785,7 +810,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
             <RotateCcw data-icon="inline-start" />
             <span className="hidden sm:inline">Starter</span>
           </Button>
-          <Button size="sm" onClick={startNewProject}>
+          <Button size="sm" onClick={() => void startNewProject()}>
             <Plus data-icon="inline-start" />
             New
           </Button>
@@ -1100,8 +1125,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                 <h2 className="text-sm font-semibold">Slide setup</h2>
               </div>
               <p className="text-xs leading-relaxed text-black/45">
-                Changes are saved in this browser. AI rewrites stay fully
-                editable.
+                Changes save automatically. AI rewrites stay fully editable.
               </p>
               <Button
                 variant="outline"
