@@ -32,6 +32,12 @@ export function SlideshowLibrary() {
   const [projects, setProjects] = useState<SlideshowProject[] | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("formats")
+  const [hasVisitedCopyTab, setHasVisitedCopyTab] = useState(false)
+
+  function selectTab(tab: TabId) {
+    setActiveTab(tab)
+    if (tab === "copy") setHasVisitedCopyTab(true)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -87,7 +93,7 @@ export function SlideshowLibrary() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
               className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition ${
                 active
                   ? "bg-[#4758c7] text-white"
@@ -107,68 +113,68 @@ export function SlideshowLibrary() {
 
       <main className="min-h-svh flex-1 px-6 py-10 md:px-10">
         <div className="mx-auto max-w-5xl">
-          {activeTab === "formats" ? (
-            <>
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <h1 className="text-2xl font-semibold">
-                  Slideshows{projects && ` (${projects.length})`}
-                </h1>
-                <Button
-                  className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
-                  onClick={() => setComposerOpen(true)}
-                >
-                  <Sparkles data-icon="inline-start" />
-                  Compose
-                </Button>
-              </div>
+          <div hidden={activeTab !== "formats"}>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h1 className="text-2xl font-semibold">
+                Slideshows{projects && ` (${projects.length})`}
+              </h1>
+              <Button
+                className="bg-[#4758c7] text-white hover:bg-[#3d4db8]"
+                onClick={() => setComposerOpen(true)}
+              >
+                <Sparkles data-icon="inline-start" />
+                Compose
+              </Button>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {projects?.map((project) => {
-                  const theme =
-                    slideshowThemes.find((t) => t.id === project.themeId) ??
-                    slideshowThemes[0]
-                  const coverSlide = project.slides[0]
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {projects?.map((project) => {
+                const theme =
+                  slideshowThemes.find((t) => t.id === project.themeId) ??
+                  slideshowThemes[0]
+                const coverSlide = project.slides[0]
 
-                  return (
-                    <Link
-                      key={project.id}
-                      href={`/slideshow/${project.id}`}
-                      className="group relative block"
-                    >
-                      <div className="relative aspect-[9/16] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40">
-                        {coverSlide && (
-                          <SlideExportCard slide={coverSlide} theme={theme} />
-                        )}
-                        <button
-                          type="button"
-                          aria-label={`Delete ${project.title}`}
-                          onClick={(event) =>
-                            void removeSlideshow(event, project)
-                          }
-                          className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                      <p className="mt-2 truncate text-sm font-medium text-black/70">
-                        {project.title}
-                      </p>
-                    </Link>
-                  )
-                })}
+                return (
+                  <Link
+                    key={project.id}
+                    href={`/slideshow/${project.id}`}
+                    className="group relative block"
+                  >
+                    <div className="relative aspect-[9/16] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40">
+                      {coverSlide && (
+                        <SlideExportCard slide={coverSlide} theme={theme} />
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Delete ${project.title}`}
+                        onClick={(event) =>
+                          void removeSlideshow(event, project)
+                        }
+                        className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                    <p className="mt-2 truncate text-sm font-medium text-black/70">
+                      {project.title}
+                    </p>
+                  </Link>
+                )
+              })}
 
-                <button
-                  type="button"
-                  onClick={() => void addSlideshow()}
-                  aria-label="New slideshow"
-                  className="flex aspect-[9/16] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 text-black/40 transition hover:border-[#4758c7] hover:text-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
-                >
-                  <Plus className="size-6" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
+              <button
+                type="button"
+                onClick={() => void addSlideshow()}
+                aria-label="New slideshow"
+                className="flex aspect-[9/16] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 text-black/40 transition hover:border-[#4758c7] hover:text-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+              >
+                <Plus className="size-6" />
+              </button>
+            </div>
+          </div>
+
+          {hasVisitedCopyTab && (
+            <div hidden={activeTab !== "copy"}>
               <div className="mb-6">
                 <h1 className="text-2xl font-semibold">Frameworks</h1>
                 <p className="mt-1 text-sm text-black/50">
@@ -177,7 +183,7 @@ export function SlideshowLibrary() {
                 </p>
               </div>
               <HooksCanvas />
-            </>
+            </div>
           )}
         </div>
       </main>
