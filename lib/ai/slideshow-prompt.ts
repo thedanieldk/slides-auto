@@ -72,9 +72,9 @@ Product placement: ${request.concept.productPlacement}
 
     const sections = [
       `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below. Every hook must fit the “${framework.name}” framework described below. Do not drift into a different structure.`,
-      `${framework.name} framework: ${framework.description}\nExample title: "${framework.exampleTitle}"\nExample opening slide: "${framework.exampleSlide}"`,
+      `${framework.name} framework: ${framework.description}\nExample title: "${framework.exampleTitle}"\nExample first numbered slide: "${framework.exampleSlide}"`,
       getCopyFormatInstructions(framework.copyFormatId),
-      `Each hook must promise exactly ${framework.slideCount} items the way the example title does, stay under 120 characters, and be meaningfully different from the other hooks in topic and phrasing. Do not number the hooks themselves or write any supporting copy — just the title line.`,
+      `Each hook must promise exactly ${framework.itemCount} items the way the example title does, stay under 120 characters, and be meaningfully different from the other hooks in topic and phrasing. Do not number the hooks themselves or write any supporting copy — just the title line.`,
       request.examples.length > 0
         ? `The user also gave these additional hooks as a style reference — lean into their voice and phrasing on top of the framework above, but don't reuse their exact topics:\n${request.examples.map((example) => `- "${example}"`).join("\n")}`
         : null,
@@ -85,10 +85,13 @@ Product placement: ${request.concept.productPlacement}
   }
 
   if (request.mode === "slideshow-from-hook") {
+    const structureInstructions = request.itemCount
+      ? `Slide 1 is a dedicated title slide: its hook must stay essentially this exact line: "${request.hook}", and its body should be empty or one short supporting sentence — no numbering here. Slides 2 through ${request.slideCount} are the numbered list itself: exactly ${request.itemCount} items, one per slide, numbered 1 through ${request.itemCount} in order. Do not repeat the title's promise as its own numbered item, and do not merge or omit any item.`
+      : `Slide 1's hook must stay essentially this exact line: "${request.hook}"\nInfer a natural content angle and a way to weave in the product from the hook and product profile below. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.`
+
     return `Create exactly ${request.slideCount} connected slideshow slides that build on the fixed opening hook below.
 
-Slide 1's hook must stay essentially this exact line: "${request.hook}"
-Infer a natural content angle and a way to weave in the product from the hook and product profile below. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
+${structureInstructions}
 Fill every numbered slide field in the response format. Do not merge or omit slides.
 
 ${getCopyFormatInstructions(request.copyFormatId)}

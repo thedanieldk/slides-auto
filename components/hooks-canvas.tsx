@@ -151,6 +151,7 @@ export function HooksCanvas() {
           mode: "slideshow-from-hook",
           hook: hook.text,
           slideCount: framework.slideCount,
+          itemCount: framework.itemCount,
           layoutId: "clean-white",
           copyFormatId: framework.copyFormatId,
           product: toProductDraft(selectedProduct),
