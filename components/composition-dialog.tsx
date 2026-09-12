@@ -29,7 +29,11 @@ import {
   hookFrameworks,
   type HookFrameworkId,
 } from "@/lib/ai/frameworks"
-import { listSavedHooks, type SavedHook } from "@/lib/hooks-storage"
+import {
+  listSavedHooks,
+  saveHookCopy,
+  type SavedHook,
+} from "@/lib/hooks-storage"
 import { getTextLayer, textStyles, type TextStyleId } from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
@@ -98,10 +102,12 @@ export function CompositionDialog({
         product: selectedProduct,
       })
 
-      setCopyByHookId((current) => ({
-        ...current,
-        [hook.id]: { status: "ready", result },
-      }))
+      setSavedHooks(saveHookCopy(hook.id, result))
+      setCopyByHookId((current) => {
+        const next = { ...current }
+        delete next[hook.id]
+        return next
+      })
     } catch (generationError) {
       setCopyByHookId((current) => ({
         ...current,
@@ -376,7 +382,15 @@ export function CompositionDialog({
                               hook={hook}
                               expanded={expandedHookId === hook.id}
                               onToggleExpand={() => toggleHookExpanded(hook.id)}
-                              copyState={copyByHookId[hook.id]}
+                              copyState={
+                                copyByHookId[hook.id] ??
+                                (hook.generatedCopy
+                                  ? {
+                                      status: "ready",
+                                      result: hook.generatedCopy,
+                                    }
+                                  : undefined)
+                              }
                               copyDisabled={!selectedProduct}
                               onGenerateCopy={() => void generateCopy(hook)}
                               onCreateSlideshow={onApply}

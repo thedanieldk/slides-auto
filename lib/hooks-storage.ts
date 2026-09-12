@@ -1,8 +1,11 @@
+import type { CompositionResult } from "@/lib/composition"
+
 export type SavedHook = {
   id: string
   text: string
   frameworkId: string
   createdAt: string
+  generatedCopy?: CompositionResult
 }
 
 const HOOKS_STORAGE_KEY = "slides-auto.hooks.v1"
@@ -44,6 +47,17 @@ export function addSavedHooks(
 
 export function deleteSavedHook(id: string): SavedHook[] {
   const next = listSavedHooks().filter((hook) => hook.id !== id)
+  window.localStorage.setItem(HOOKS_STORAGE_KEY, JSON.stringify(next))
+  return next
+}
+
+export function saveHookCopy(
+  id: string,
+  result: CompositionResult
+): SavedHook[] {
+  const next = listSavedHooks().map((hook) =>
+    hook.id === id ? { ...hook, generatedCopy: result } : hook
+  )
   window.localStorage.setItem(HOOKS_STORAGE_KEY, JSON.stringify(next))
   return next
 }

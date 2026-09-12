@@ -28,6 +28,7 @@ import {
   addSavedHooks,
   deleteSavedHook,
   listSavedHooks,
+  saveHookCopy,
   type SavedHook,
 } from "@/lib/hooks-storage"
 import { createProjectFromComposition } from "@/lib/project-storage"
@@ -143,10 +144,12 @@ export function HooksCanvas() {
         product: selectedProduct,
       })
 
-      setCopyByHookId((current) => ({
-        ...current,
-        [hook.id]: { status: "ready", result },
-      }))
+      setHooks(saveHookCopy(hook.id, result))
+      setCopyByHookId((current) => {
+        const next = { ...current }
+        delete next[hook.id]
+        return next
+      })
     } catch (generationError) {
       setCopyByHookId((current) => ({
         ...current,
@@ -293,7 +296,15 @@ export function HooksCanvas() {
                               expanded={expandedHookIds.has(hook.id)}
                               onToggleExpand={() => toggleHookExpanded(hook.id)}
                               onDelete={() => removeHook(hook.id)}
-                              copyState={copyByHookId[hook.id]}
+                              copyState={
+                                copyByHookId[hook.id] ??
+                                (hook.generatedCopy
+                                  ? {
+                                      status: "ready",
+                                      result: hook.generatedCopy,
+                                    }
+                                  : undefined)
+                              }
                               copyDisabled={!selectedProduct}
                               onGenerateCopy={() =>
                                 void generateCopy(hook, framework)
