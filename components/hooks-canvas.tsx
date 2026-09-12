@@ -220,25 +220,27 @@ export function HooksCanvas() {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {frameworkHooks.map((hook) => (
-                          <div
-                            key={hook.id}
-                            className="group relative rounded-xl border border-black/10 bg-white p-4 pr-9 shadow-[0_4px_14px_rgba(42,43,55,.05)]"
-                          >
-                            <p className="text-sm leading-snug font-medium">
-                              {hook.text}
-                            </p>
-                            <button
-                              type="button"
-                              aria-label="Delete hook"
-                              onClick={() => removeHook(hook.id)}
-                              className="absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-full text-black/25 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
+                      <div className="max-h-[28rem] overflow-y-auto pr-1">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                          {frameworkHooks.map((hook) => (
+                            <div
+                              key={hook.id}
+                              className="group relative rounded-xl border border-black/10 bg-white p-4 pr-9 shadow-[0_4px_14px_rgba(42,43,55,.05)]"
                             >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        ))}
+                              <p className="text-sm leading-snug font-medium">
+                                {hook.text}
+                              </p>
+                              <button
+                                type="button"
+                                aria-label="Delete hook"
+                                onClick={() => removeHook(hook.id)}
+                                className="absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-full text-black/25 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
