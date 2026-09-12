@@ -104,7 +104,7 @@ export async function createProjectFromComposition(
 
 /**
  * First-run setup so the library never shows up empty for a brand new
- * anonymous user: guarantees the starter slideshow and a blank one exist.
+ * user: guarantees the starter slideshow exists.
  */
 export async function ensureSeedProjects(): Promise<void> {
   const userId = await getCurrentUserId()
@@ -119,5 +119,4 @@ export async function ensureSeedProjects(): Promise<void> {
     ...structuredClone(starterProject),
     id: crypto.randomUUID(),
   })
-  await saveProject(createProject())
 }
