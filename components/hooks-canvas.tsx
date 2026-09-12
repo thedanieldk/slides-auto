@@ -34,6 +34,7 @@ export function HooksCanvas() {
   const [expandedFrameworkId, setExpandedFrameworkId] =
     useState<HookFrameworkId | null>(hookFrameworks[0]?.id ?? null)
   const [hooks, setHooks] = useState<SavedHook[]>([])
+  const [expandedHookIds, setExpandedHookIds] = useState<Set<string>>(new Set())
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -101,6 +102,18 @@ export function HooksCanvas() {
 
   function removeHook(id: string) {
     setHooks(deleteSavedHook(id))
+  }
+
+  function toggleHookExpanded(id: string) {
+    setExpandedHookIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
   }
 
   return (
@@ -220,26 +233,48 @@ export function HooksCanvas() {
                         </div>
                       </div>
                     ) : (
-                      <div className="max-h-[28rem] overflow-y-auto pr-1">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                          {frameworkHooks.map((hook) => (
-                            <div
-                              key={hook.id}
-                              className="group relative rounded-xl border border-black/10 bg-white p-4 pr-9 shadow-[0_4px_14px_rgba(42,43,55,.05)]"
-                            >
-                              <p className="text-sm leading-snug font-medium">
-                                {hook.text}
-                              </p>
-                              <button
-                                type="button"
-                                aria-label="Delete hook"
-                                onClick={() => removeHook(hook.id)}
-                                className="absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-full text-black/25 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
+                      <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-black/10 bg-white">
+                        <div className="divide-y divide-black/8">
+                          {frameworkHooks.map((hook) => {
+                            const hookExpanded = expandedHookIds.has(hook.id)
+
+                            return (
+                              <div
+                                key={hook.id}
+                                className="group flex items-start gap-2 px-4 py-3"
                               >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleHookExpanded(hook.id)}
+                                  aria-expanded={hookExpanded}
+                                  className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                                >
+                                  <p
+                                    className={cn(
+                                      "min-w-0 flex-1 text-sm leading-snug font-medium",
+                                      !hookExpanded && "truncate"
+                                    )}
+                                  >
+                                    {hook.text}
+                                  </p>
+                                  <ChevronDown
+                                    className={cn(
+                                      "mt-0.5 size-3.5 shrink-0 text-black/25 transition",
+                                      hookExpanded && "rotate-180"
+                                    )}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Delete hook"
+                                  onClick={() => removeHook(hook.id)}
+                                  className="grid size-6 shrink-0 place-items-center rounded-full text-black/25 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
