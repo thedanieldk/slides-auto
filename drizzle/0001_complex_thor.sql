@@ -1,0 +1,1 @@
+DROP TABLE "db_health_check" CASCADE;
