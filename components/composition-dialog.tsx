@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
   ChevronRight,
   FileText,
   ImageIcon,
@@ -55,6 +56,7 @@ export function CompositionDialog({
   )
   const [savedHooks, setSavedHooks] = useState<SavedHook[]>([])
   const [selectedHookId, setSelectedHookId] = useState<string | null>(null)
+  const [expandedHookIds, setExpandedHookIds] = useState<Set<string>>(new Set())
   const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
   const [generationStage, setGenerationStage] = useState<"slides" | null>(null)
@@ -148,6 +150,18 @@ export function CompositionDialog({
     setSelectedHookId(null)
     setResult(null)
     setError(null)
+  }
+
+  function toggleHookExpanded(id: string) {
+    setExpandedHookIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
   }
 
   const updateProduct = useCallback((product: ProductProfile | null) => {
@@ -503,6 +517,8 @@ export function CompositionDialog({
                             setSelectedHookId(hook.id)
                             setError(null)
                           }}
+                          expanded={expandedHookIds.has(hook.id)}
+                          onToggleExpand={() => toggleHookExpanded(hook.id)}
                         />
                       ))}
                     </div>
@@ -534,46 +550,94 @@ function HookOption({
   hook,
   selected,
   onSelect,
+  expanded,
+  onToggleExpand,
 }: {
   hook: SavedHook
   selected: boolean
   onSelect: () => void
+  expanded: boolean
+  onToggleExpand: () => void
 }) {
+  const hasCopy = Boolean(hook.generatedCopy)
+
   return (
-    <motion.button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
+    <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl border bg-white p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+        "group overflow-hidden rounded-xl border transition",
         selected
           ? "border-[#4758c7] shadow-[0_8px_24px_rgba(71,88,199,.12)]"
-          : "border-black/8 hover:border-black/20"
+          : "border-black/8 hover:border-black/20",
+        hasCopy ? "bg-[#eefaf1]" : "bg-white"
       )}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute inset-y-0 left-0 w-1 transition",
-          selected ? "bg-[#4758c7]" : "bg-transparent"
+      <div className="flex items-start gap-3 p-3.5">
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label="Select hook"
+          onClick={onSelect}
+          className={cn(
+            "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+            selected
+              ? "border-[#4758c7] bg-[#4758c7] text-white"
+              : "border-black/15 text-transparent group-hover:border-black/30"
+          )}
+        >
+          <Check className="size-3" />
+        </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          className="min-w-0 flex-1 text-left text-sm leading-snug font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+        >
+          {hook.text}
+        </button>
+        {hasCopy && (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? "Hide full copy" : "Show full copy"}
+            onClick={onToggleExpand}
+            className="grid size-6 shrink-0 place-items-center rounded-full text-black/35 transition hover:bg-black/5 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+          >
+            <ChevronDown
+              className={cn("size-4 transition", expanded && "rotate-180")}
+            />
+          </button>
         )}
-      />
-      <span className="min-w-0 flex-1 text-sm leading-snug font-semibold">
-        {hook.text}
-      </span>
-      <span
-        className={cn(
-          "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition",
-          selected
-            ? "border-[#4758c7] bg-[#4758c7] text-white"
-            : "border-black/15 text-transparent group-hover:border-black/30"
-        )}
-      >
-        <Check className="size-3" />
-      </span>
-    </motion.button>
+      </div>
+
+      {expanded && hook.generatedCopy && (
+        <div className="space-y-2 border-t border-black/8 bg-white/60 p-3.5 pt-3">
+          {hook.generatedCopy.slides.map((slide, index) => {
+            const slideHook = getTextLayer(slide, "hook")
+            const slideBody = getTextLayer(slide, "body")
+
+            return (
+              <div
+                key={slide.id}
+                className="rounded-lg border border-black/8 bg-white p-2.5"
+              >
+                <p className="text-[10px] font-semibold text-black/35">
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <p className="text-xs leading-snug font-semibold">
+                  {slideHook?.text || "Untitled slide"}
+                </p>
+                {slideBody?.text && (
+                  <p className="mt-1 text-[11px] leading-relaxed text-black/55">
+                    {slideBody.text}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </motion.div>
   )
 }
 
