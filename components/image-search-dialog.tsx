@@ -11,18 +11,16 @@ import type { SlideImage } from "@/lib/slideshow"
 
 type ImageSearchDialogProps = {
   open: boolean
-  initialQuery: string
   onClose: () => void
   onSelect: (image: SlideImage) => void
 }
 
 export function ImageSearchDialog({
   open,
-  initialQuery,
   onClose,
   onSelect,
 }: ImageSearchDialogProps) {
-  const [query, setQuery] = useState(initialQuery)
+  const [query, setQuery] = useState("")
   const [results, setResults] = useState<ImageSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,15 +51,14 @@ export function ImageSearchDialog({
   useEffect(() => {
     if (!open) return
 
-    const initializeSearch = window.setTimeout(() => {
-      setQuery(initialQuery)
+    const resetSearch = window.setTimeout(() => {
+      setQuery("")
       setResults([])
       setError(null)
-      if (initialQuery.trim().length >= 2) void runSearch(initialQuery)
     }, 0)
 
-    return () => window.clearTimeout(initializeSearch)
-  }, [initialQuery, open, runSearch])
+    return () => window.clearTimeout(resetSearch)
+  }, [open])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

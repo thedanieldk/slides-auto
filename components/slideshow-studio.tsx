@@ -1534,7 +1534,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
 
       <ImageSearchDialog
         open={imageSearchOpen}
-        initialQuery={getSlideImageQuery()}
         onClose={() => setImageSearchOpen(false)}
         onSelect={(image) => {
           updateActiveSlide({ image })
