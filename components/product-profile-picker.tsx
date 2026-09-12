@@ -147,7 +147,8 @@ export function ProductProfilePicker({
       })
       selectProfile(profile)
       closeAddProduct()
-    } catch {
+    } catch (saveError) {
+      console.error("saveProduct failed:", saveError)
       setError("Could not save the product. Try again.")
     } finally {
       setIsSaving(false)

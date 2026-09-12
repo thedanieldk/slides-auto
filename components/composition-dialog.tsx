@@ -3,8 +3,10 @@
 import {
   AlertTriangle,
   Check,
+  ChevronRight,
   FileText,
   ImageIcon,
+  LoaderCircle,
   WandSparkles,
   X,
 } from "lucide-react"
@@ -19,11 +21,7 @@ import {
   hasTextOverflowRisk,
   type CompositionResult,
 } from "@/lib/composition"
-import {
-  HookRow,
-  requestHookCopy,
-  type HookCopyState,
-} from "@/components/hook-copy-list"
+import { requestHookCopy } from "@/components/hook-copy-list"
 import {
   getHookFramework,
   hookFrameworks,
@@ -56,12 +54,11 @@ export function CompositionDialog({
     null
   )
   const [savedHooks, setSavedHooks] = useState<SavedHook[]>([])
-  const [expandedHookId, setExpandedHookId] = useState<string | null>(null)
-  const [copyByHookId, setCopyByHookId] = useState<
-    Record<string, HookCopyState>
-  >({})
+  const [selectedHookId, setSelectedHookId] = useState<string | null>(null)
   const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
+  const [generationStage, setGenerationStage] = useState<"slides" | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const framework = getHookFramework(frameworkId)
   const frameworkHooks = savedHooks.filter(
@@ -88,49 +85,39 @@ export function CompositionDialog({
     }
   }, [open])
 
-  async function generateCopy(hook: SavedHook) {
-    if (!selectedProduct) return
+  async function generateSlideshowFromHook() {
+    if (!selectedProduct || selectedHookId === null) return
+    const hook = frameworkHooks.find((item) => item.id === selectedHookId)
+    if (!hook) return
 
-    setCopyByHookId((current) => ({
-      ...current,
-      [hook.id]: { status: "generating" },
-    }))
+    setGenerationStage("slides")
+    setError(null)
+    setResult(null)
 
     try {
-      const result = await requestHookCopy({
+      const generated = await requestHookCopy({
         hook: hook.text,
         framework,
         layoutId: textStyleId,
         product: selectedProduct,
       })
 
-      await saveHookCopy(hook.id, result)
+      await saveHookCopy(hook.id, generated)
       setSavedHooks((current) =>
         current.map((item) =>
-          item.id === hook.id ? { ...item, generatedCopy: result } : item
+          item.id === hook.id ? { ...item, generatedCopy: generated } : item
         )
       )
-      setCopyByHookId((current) => {
-        const next = { ...current }
-        delete next[hook.id]
-        return next
-      })
+      setResult(generated)
     } catch (generationError) {
-      setCopyByHookId((current) => ({
-        ...current,
-        [hook.id]: {
-          status: "error",
-          message:
-            generationError instanceof Error
-              ? generationError.message
-              : "Something went wrong while generating the slideshow.",
-        },
-      }))
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Something went wrong while generating the slideshow."
+      )
+    } finally {
+      setGenerationStage(null)
     }
-  }
-
-  function toggleHookExpanded(id: string) {
-    setExpandedHookId((current) => (current === id ? null : id))
   }
 
   function buildScriptPreview() {
@@ -146,27 +133,28 @@ export function CompositionDialog({
   function updateTextStyle(value: TextStyleId) {
     setTextStyleId(value)
     setResult(null)
-    setExpandedHookId(null)
-    setCopyByHookId({})
+    setError(null)
   }
 
   function updateMode(value: ComposerMode) {
     setMode(value)
+    setSelectedHookId(null)
     setResult(null)
-    setExpandedHookId(null)
-    setCopyByHookId({})
+    setError(null)
   }
 
   function updateFramework(value: HookFrameworkId) {
     setFrameworkId(value)
-    setExpandedHookId(null)
-    setCopyByHookId({})
+    setSelectedHookId(null)
+    setResult(null)
+    setError(null)
   }
 
   const updateProduct = useCallback((product: ProductProfile | null) => {
     setSelectedProduct(product)
-    setExpandedHookId(null)
-    setCopyByHookId({})
+    setSelectedHookId(null)
+    setResult(null)
+    setError(null)
   }, [])
 
   return (
@@ -342,6 +330,15 @@ export function CompositionDialog({
                   </div>
                 </fieldset>
 
+                {error && (
+                  <p
+                    className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-700"
+                    role="alert"
+                  >
+                    {error}
+                  </p>
+                )}
+
                 {mode === "script" && (
                   <Button
                     className="mt-5 w-full"
@@ -352,150 +349,177 @@ export function CompositionDialog({
                     Build preview
                   </Button>
                 )}
+
+                {mode === "ai" && (
+                  <>
+                    <Button
+                      className="mt-5 w-full"
+                      disabled={
+                        !selectedProduct ||
+                        selectedHookId === null ||
+                        generationStage !== null
+                      }
+                      onClick={() => void generateSlideshowFromHook()}
+                    >
+                      {generationStage === "slides" ? (
+                        <LoaderCircle
+                          data-icon="inline-start"
+                          className="animate-spin"
+                        />
+                      ) : (
+                        <ChevronRight data-icon="inline-end" />
+                      )}
+                      {generationStage === "slides"
+                        ? "Writing slides…"
+                        : result
+                          ? "Regenerate slides"
+                          : `Turn this into ${framework.slideCount} slides`}
+                    </Button>
+                    {!selectedProduct && (
+                      <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
+                        Choose a saved product first.
+                      </p>
+                    )}
+                    {selectedProduct && selectedHookId === null && (
+                      <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
+                        Pick a hook on the right first.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="flex min-h-80 flex-col bg-[#efede8] p-5 md:p-7 lg:overflow-hidden">
-                {mode === "ai" ? (
-                  <>
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold">Pick a hook</h3>
-                      <p className="text-[11px] text-black/40">
-                        Choose one of your saved {framework.name} hooks, then
-                        write its full copy.
-                      </p>
-                    </div>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">
+                      {result
+                        ? "Composition preview"
+                        : mode === "ai"
+                          ? "Pick a hook"
+                          : "Composition preview"}
+                    </h3>
+                    <p className="text-[11px] text-black/40">
+                      {result
+                        ? "Review the split before creating your slides."
+                        : mode === "ai"
+                          ? `Choose one of your saved ${framework.name} hooks, then generate its full copy.`
+                          : "Review the split before creating your slides."}
+                    </p>
+                  </div>
+                  {result && mode === "ai" ? (
+                    <button
+                      type="button"
+                      onClick={() => setResult(null)}
+                      className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black/50 transition hover:text-black focus-visible:outline-2 focus-visible:outline-[#4758c7]"
+                    >
+                      Back to hooks
+                    </button>
+                  ) : result ? (
+                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black/50">
+                      {result.slides.length} slides
+                    </span>
+                  ) : null}
+                </div>
 
-                    {frameworkHooks.length === 0 ? (
-                      <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
-                        <div>
-                          <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
-                            <WandSparkles className="size-4" />
-                          </div>
-                          <p className="text-xs font-semibold">
-                            No {framework.name} hooks yet
-                          </p>
-                          <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
-                            Generate some in the Copy tab first, then come back
-                            here to write the full slideshow.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-black/10 bg-white">
-                        <div className="divide-y divide-black/8">
-                          {frameworkHooks.map((hook) => (
-                            <HookRow
-                              key={hook.id}
-                              hook={hook}
-                              expanded={expandedHookId === hook.id}
-                              onToggleExpand={() => toggleHookExpanded(hook.id)}
-                              copyState={
-                                copyByHookId[hook.id] ??
-                                (hook.generatedCopy
-                                  ? {
-                                      status: "ready",
-                                      result: hook.generatedCopy,
-                                    }
-                                  : undefined)
-                              }
-                              copyDisabled={!selectedProduct}
-                              onGenerateCopy={() => void generateCopy(hook)}
-                              onCreateSlideshow={onApply}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
+                {result ? (
                   <>
-                    <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {result.slides.map((slide, index) => {
+                        const hook = getTextLayer(slide, "hook")
+                        const body = getTextLayer(slide, "body")
+                        const overflowRisk = hasTextOverflowRisk(slide)
+
+                        return (
+                          <motion.article
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.025 }}
+                            key={slide.id}
+                            className="rounded-xl border border-black/8 bg-white p-3"
+                          >
+                            <div className="flex gap-3">
+                              <span className="pt-0.5 text-[10px] font-semibold text-black/30 tabular-nums">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs leading-snug font-semibold">
+                                  {hook?.text || "Untitled slide"}
+                                </p>
+                                {body?.text && (
+                                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-black/48">
+                                    {body.text}
+                                  </p>
+                                )}
+                                <div className="mt-2 flex items-center gap-1 text-[9px] text-black/35">
+                                  <ImageIcon className="size-3" />
+                                  <span className="truncate">
+                                    {slide.imageQuery}
+                                  </span>
+                                </div>
+                              </div>
+                              {overflowRisk && (
+                                <AlertTriangle
+                                  className="size-3.5 shrink-0 text-amber-600"
+                                  aria-label="Text may need manual fitting"
+                                />
+                              )}
+                            </div>
+                          </motion.article>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      className="mt-4 w-full"
+                      onClick={() => onApply(result)}
+                    >
+                      Create slideshow with {result.slides.length} slides
+                    </Button>
+                  </>
+                ) : mode === "ai" ? (
+                  frameworkHooks.length === 0 ? (
+                    <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
                       <div>
-                        <h3 className="text-sm font-semibold">
-                          Composition preview
-                        </h3>
-                        <p className="text-[11px] text-black/40">
-                          Review the split before creating your slides.
+                        <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
+                          <WandSparkles className="size-4" />
+                        </div>
+                        <p className="text-xs font-semibold">
+                          No {framework.name} hooks yet
+                        </p>
+                        <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
+                          Generate some in the Copy tab first, then come back
+                          here to write the full slideshow.
                         </p>
                       </div>
-                      {result && (
-                        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black/50">
-                          {result.slides.length} slides
-                        </span>
-                      )}
                     </div>
-
-                    {result ? (
-                      <>
-                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                          {result.slides.map((slide, index) => {
-                            const hook = getTextLayer(slide, "hook")
-                            const body = getTextLayer(slide, "body")
-                            const overflowRisk = hasTextOverflowRisk(slide)
-
-                            return (
-                              <motion.article
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.025 }}
-                                key={slide.id}
-                                className="rounded-xl border border-black/8 bg-white p-3"
-                              >
-                                <div className="flex gap-3">
-                                  <span className="pt-0.5 text-[10px] font-semibold text-black/30 tabular-nums">
-                                    {String(index + 1).padStart(2, "0")}
-                                  </span>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs leading-snug font-semibold">
-                                      {hook?.text || "Untitled slide"}
-                                    </p>
-                                    {body?.text && (
-                                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-black/48">
-                                        {body.text}
-                                      </p>
-                                    )}
-                                    <div className="mt-2 flex items-center gap-1 text-[9px] text-black/35">
-                                      <ImageIcon className="size-3" />
-                                      <span className="truncate">
-                                        {slide.imageQuery}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {overflowRisk && (
-                                    <AlertTriangle
-                                      className="size-3.5 shrink-0 text-amber-600"
-                                      aria-label="Text may need manual fitting"
-                                    />
-                                  )}
-                                </div>
-                              </motion.article>
-                            )
-                          })}
-                        </div>
-                        <Button
-                          className="mt-4 w-full"
-                          onClick={() => onApply(result)}
-                        >
-                          Create slideshow with {result.slides.length} slides
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
-                        <div>
-                          <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
-                            <WandSparkles className="size-4" />
-                          </div>
-                          <p className="text-xs font-semibold">
-                            No preview yet
-                          </p>
-                          <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
-                            Add at least a sentence, choose a layout, then build
-                            the composition.
-                          </p>
-                        </div>
+                  ) : (
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {frameworkHooks.map((hook) => (
+                        <HookOption
+                          key={hook.id}
+                          hook={hook}
+                          selected={selectedHookId === hook.id}
+                          onSelect={() => {
+                            setSelectedHookId(hook.id)
+                            setError(null)
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
+                    <div>
+                      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
+                        <WandSparkles className="size-4" />
                       </div>
-                    )}
-                  </>
+                      <p className="text-xs font-semibold">No preview yet</p>
+                      <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
+                        Add at least a sentence, choose a layout, then build the
+                        composition.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -503,6 +527,53 @@ export function CompositionDialog({
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+function HookOption({
+  hook,
+  selected,
+  onSelect,
+}: {
+  hook: SavedHook
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <motion.button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl border bg-white p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+        selected
+          ? "border-[#4758c7] shadow-[0_8px_24px_rgba(71,88,199,.12)]"
+          : "border-black/8 hover:border-black/20"
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-y-0 left-0 w-1 transition",
+          selected ? "bg-[#4758c7]" : "bg-transparent"
+        )}
+      />
+      <span className="min-w-0 flex-1 text-sm leading-snug font-semibold">
+        {hook.text}
+      </span>
+      <span
+        className={cn(
+          "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition",
+          selected
+            ? "border-[#4758c7] bg-[#4758c7] text-white"
+            : "border-black/15 text-transparent group-hover:border-black/30"
+        )}
+      >
+        <Check className="size-3" />
+      </span>
+    </motion.button>
   )
 }
 
