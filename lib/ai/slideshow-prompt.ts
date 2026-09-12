@@ -21,6 +21,7 @@ Writing rules:
 - Avoid motivational-poster language and influencer-style viral captions.
 - Never use these words: chaos, clarity, intentional, aligned, clutter, hijacked, reclaim.
 - Do not use hashtags, emojis, fake quotations, engagement bait, or calls to “save and share.”
+- Never use an em dash (—). Use a comma, period, or "and"/"but" instead.
 - Do not repeat the same point across slides.
 - Keep claims grounded in the topic. Do not invent precise facts, credentials, or results that were not supplied.
 
