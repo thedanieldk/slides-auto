@@ -167,6 +167,7 @@ export function HooksCanvas() {
                     <ProductProfilePicker
                       value={selectedProduct}
                       onChange={updateProduct}
+                      allowNoProduct={false}
                     />
 
                     <label className="mb-5 block">

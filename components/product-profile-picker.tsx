@@ -27,6 +27,7 @@ const SELECTED_PROFILE_STORAGE_KEY = "slides-auto.selected-product-profile.v1"
 type ProductProfilePickerProps = {
   value: ProductProfile | null
   onChange: (profile: ProductProfile | null) => void
+  allowNoProduct?: boolean
 }
 
 type ProfileAnalysis = ProductProfileDraft & { sourceUrl: string }
@@ -34,6 +35,7 @@ type ProfileAnalysis = ProductProfileDraft & { sourceUrl: string }
 export function ProductProfilePicker({
   value,
   onChange,
+  allowNoProduct = true,
 }: ProductProfilePickerProps) {
   const [profiles, setProfiles] = useState<ProductProfile[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
@@ -173,28 +175,30 @@ export function ProductProfilePicker({
       </legend>
 
       <div className="space-y-2">
-        <button
-          type="button"
-          aria-pressed={value === null}
-          onClick={() => selectProfile(null)}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-            value === null
-              ? "border-[#4758c7] bg-[#eef0ff]"
-              : "border-black/10 bg-white hover:border-black/20"
-          )}
-        >
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-black/8 bg-[#f6f5f2] text-black/35">
-            <PackageOpen className="size-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold">No product</span>
-            <span className="mt-0.5 block text-[11px] text-black/45">
-              Keep this slideshow non-promotional.
+        {allowNoProduct && (
+          <button
+            type="button"
+            aria-pressed={value === null}
+            onClick={() => selectProfile(null)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+              value === null
+                ? "border-[#4758c7] bg-[#eef0ff]"
+                : "border-black/10 bg-white hover:border-black/20"
+            )}
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-black/8 bg-[#f6f5f2] text-black/35">
+              <PackageOpen className="size-4" />
             </span>
-          </span>
-          {value === null && <Check className="size-3.5 text-[#4758c7]" />}
-        </button>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold">No product</span>
+              <span className="mt-0.5 block text-[11px] text-black/45">
+                Keep this slideshow non-promotional.
+              </span>
+            </span>
+            {value === null && <Check className="size-3.5 text-[#4758c7]" />}
+          </button>
+        )}
 
         {profiles.map((profile) => {
           const selected = profile.id === value?.id
