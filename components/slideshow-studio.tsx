@@ -177,7 +177,8 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     const timeout = window.setTimeout(() => {
       void saveProject(project)
         .then(() => setSaveState("saved"))
-        .catch(() => {
+        .catch((saveError) => {
+          console.error("saveProject failed:", saveError)
           setSaveState("failed")
           setNotice("Could not save. Check your connection and try again.")
         })
@@ -191,7 +192,8 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     try {
       await saveProject(project)
       setSaveState("saved")
-    } catch {
+    } catch (saveError) {
+      console.error("saveProject failed:", saveError)
       setSaveState("failed")
       setNotice("Could not save. Check your connection and try again.")
     }
