@@ -14,14 +14,17 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
+  deleteProductProfile,
+  listProductProfiles,
+  upsertProductProfile,
+} from "@/lib/actions/products"
+import {
   productProfileAnalysisSchema,
   productProfileDraftSchema,
-  storedProductProfilesSchema,
   type ProductProfile,
   type ProductProfileDraft,
 } from "@/lib/products/product-profile"
 
-const PROFILES_STORAGE_KEY = "slides-auto.product-profiles.v1"
 const SELECTED_PROFILE_STORAGE_KEY = "slides-auto.selected-product-profile.v1"
 
 type ProductProfilePickerProps = {
@@ -38,42 +41,31 @@ export function ProductProfilePicker({
   allowNoProduct = true,
 }: ProductProfilePickerProps) {
   const [profiles, setProfiles] = useState<ProductProfile[]>([])
-  const [hasLoaded, setHasLoaded] = useState(false)
   const [addingProduct, setAddingProduct] = useState(false)
   const [url, setUrl] = useState("")
   const [draft, setDraft] = useState<ProfileAnalysis | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      try {
-        const stored = window.localStorage.getItem(PROFILES_STORAGE_KEY)
-        const parsed: unknown = stored ? JSON.parse(stored) : []
-        const loaded = storedProductProfilesSchema.safeParse(parsed)
-        if (loaded.success) {
-          setProfiles(loaded.data)
-          const selectedId = window.localStorage.getItem(
-            SELECTED_PROFILE_STORAGE_KEY
-          )
-          const selected = loaded.data.find(
-            (profile) => profile.id === selectedId
-          )
-          if (selected) onChange(selected)
-        }
-      } catch {
-        // Invalid browser storage should not block product setup.
-      }
-      setHasLoaded(true)
-    }, 0)
+    let cancelled = false
 
-    return () => window.clearTimeout(timeout)
+    void listProductProfiles().then((loaded) => {
+      if (cancelled) return
+      setProfiles(loaded)
+
+      const selectedId = window.localStorage.getItem(
+        SELECTED_PROFILE_STORAGE_KEY
+      )
+      const selected = loaded.find((profile) => profile.id === selectedId)
+      if (selected) onChange(selected)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [onChange])
-
-  useEffect(() => {
-    if (!hasLoaded) return
-    window.localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles))
-  }, [hasLoaded, profiles])
 
   function selectProfile(profile: ProductProfile | null) {
     onChange(profile)
@@ -127,7 +119,7 @@ export function ProductProfilePicker({
     setDraft((current) => (current ? { ...current, ...changes } : current))
   }
 
-  function saveProduct() {
+  async function saveProduct() {
     if (!draft) return
     const parsedDraft = productProfileDraftSchema.safeParse(draft)
     if (!parsedDraft.success) {
@@ -135,30 +127,39 @@ export function ProductProfilePicker({
       return
     }
 
-    const existing = profiles.find(
-      (profile) => profile.sourceUrl === draft.sourceUrl
-    )
-    const profile: ProductProfile = {
-      ...parsedDraft.data,
-      id: existing?.id ?? crypto.randomUUID(),
-      sourceUrl: draft.sourceUrl,
-      createdAt: existing?.createdAt ?? new Date().toISOString(),
-    }
+    setIsSaving(true)
+    setError(null)
 
-    setProfiles((current) =>
-      existing
-        ? current.map((item) => (item.id === existing.id ? profile : item))
-        : [...current, profile].slice(-20)
-    )
-    selectProfile(profile)
-    closeAddProduct()
+    try {
+      const profile = await upsertProductProfile({
+        ...parsedDraft.data,
+        sourceUrl: draft.sourceUrl,
+      })
+
+      setProfiles((current) => {
+        const existingIndex = current.findIndex(
+          (item) => item.id === profile.id
+        )
+        if (existingIndex === -1) return [profile, ...current]
+        return current.map((item, index) =>
+          index === existingIndex ? profile : item
+        )
+      })
+      selectProfile(profile)
+      closeAddProduct()
+    } catch {
+      setError("Could not save the product. Try again.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  function deleteProfile(profileId: string) {
+  async function deleteProfile(profileId: string) {
     setProfiles((current) =>
       current.filter((profile) => profile.id !== profileId)
     )
     if (value?.id === profileId) selectProfile(null)
+    await deleteProductProfile(profileId)
   }
 
   function closeAddProduct() {
@@ -237,7 +238,7 @@ export function ProductProfilePicker({
                 type="button"
                 aria-label={`Delete ${profile.name}`}
                 title={`Delete ${profile.name}`}
-                onClick={() => deleteProfile(profile.id)}
+                onClick={() => void deleteProfile(profile.id)}
                 className="grid w-10 shrink-0 place-items-center border-l border-black/8 text-black/25 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
               >
                 <Trash2 className="size-3.5" />
@@ -347,8 +348,18 @@ export function ProductProfilePicker({
               <p className="truncate text-[9px] text-black/30">
                 Source: {draft.sourceUrl}
               </p>
-              <Button className="w-full" onClick={saveProduct}>
-                Save and use product
+              <Button
+                className="w-full"
+                disabled={isSaving}
+                onClick={() => void saveProduct()}
+              >
+                {isSaving ? (
+                  <LoaderCircle
+                    data-icon="inline-start"
+                    className="animate-spin"
+                  />
+                ) : null}
+                {isSaving ? "Saving…" : "Save and use product"}
               </Button>
             </div>
           )}
