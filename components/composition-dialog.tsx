@@ -3,10 +3,8 @@
 import {
   AlertTriangle,
   Check,
-  ChevronRight,
   FileText,
   ImageIcon,
-  LoaderCircle,
   WandSparkles,
   X,
 } from "lucide-react"
@@ -17,28 +15,22 @@ import { Button } from "@/components/ui/button"
 import { ProductProfilePicker } from "@/components/product-profile-picker"
 import { cn } from "@/lib/utils"
 import {
-  composeGeneratedSlideshow,
   composeScript,
   hasTextOverflowRisk,
   type CompositionResult,
 } from "@/lib/composition"
 import {
-  generatedConceptsSchema,
-  generatedSlideshowSchema,
-  type GeneratedConcept,
-} from "@/lib/ai/slideshow-generation"
-import { copyFormats } from "@/lib/ai/copy-formats"
+  HookRow,
+  requestHookCopy,
+  type HookCopyState,
+} from "@/components/hook-copy-list"
 import {
   getHookFramework,
   hookFrameworks,
   type HookFrameworkId,
 } from "@/lib/ai/frameworks"
-import {
-  getTextLayer,
-  resolveCarouselTextStyle,
-  textStyles,
-  type TextStyleId,
-} from "@/lib/slideshow"
+import { listSavedHooks, type SavedHook } from "@/lib/hooks-storage"
+import { getTextLayer, textStyles, type TextStyleId } from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
 type CompositionDialogProps = {
@@ -62,18 +54,18 @@ export function CompositionDialog({
   const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
     null
   )
-  const [concepts, setConcepts] = useState<GeneratedConcept[]>([])
-  const [selectedConceptIndex, setSelectedConceptIndex] = useState<
-    number | null
-  >(null)
+  const [savedHooks, setSavedHooks] = useState<SavedHook[]>([])
+  const [expandedHookId, setExpandedHookId] = useState<string | null>(null)
+  const [copyByHookId, setCopyByHookId] = useState<
+    Record<string, HookCopyState>
+  >({})
   const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
-  const [generationStage, setGenerationStage] = useState<
-    "concepts" | "slides" | null
-  >(null)
-  const [error, setError] = useState<string | null>(null)
 
   const framework = getHookFramework(frameworkId)
+  const frameworkHooks = savedHooks.filter(
+    (hook) => hook.frameworkId === frameworkId
+  )
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -84,110 +76,48 @@ export function CompositionDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose, open])
 
-  async function generateConcepts() {
+  useEffect(() => {
+    if (!open) return
+    const timeout = window.setTimeout(() => setSavedHooks(listSavedHooks()), 0)
+    return () => window.clearTimeout(timeout)
+  }, [open])
+
+  async function generateCopy(hook: SavedHook) {
     if (!selectedProduct) return
 
-    setGenerationStage("concepts")
-    setError(null)
-    setResult(null)
-    setConcepts([])
-    setSelectedConceptIndex(null)
+    setCopyByHookId((current) => ({
+      ...current,
+      [hook.id]: { status: "generating" },
+    }))
 
     try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "concepts",
-          copyFormatId: getHookFramework(frameworkId).copyFormatId,
-          product: toProductDraft(selectedProduct),
-        }),
+      const result = await requestHookCopy({
+        hook: hook.text,
+        framework,
+        layoutId: textStyleId,
+        product: selectedProduct,
       })
-      const payload: unknown = await response.json()
-      const responseBody = isRecord(payload) ? payload : {}
 
-      if (!response.ok) {
-        throw new Error(
-          typeof responseBody.error === "string"
-            ? responseBody.error
-            : "The AI service could not generate concepts."
-        )
-      }
-
-      const generated = generatedConceptsSchema.safeParse(responseBody.data)
-      if (!generated.success) {
-        throw new Error("The generated concepts were incomplete. Try again.")
-      }
-
-      setConcepts(generated.data.concepts)
-      setSelectedConceptIndex(0)
+      setCopyByHookId((current) => ({
+        ...current,
+        [hook.id]: { status: "ready", result },
+      }))
     } catch (generationError) {
-      setError(
-        generationError instanceof Error
-          ? generationError.message
-          : "Something went wrong while generating concepts."
-      )
-    } finally {
-      setGenerationStage(null)
+      setCopyByHookId((current) => ({
+        ...current,
+        [hook.id]: {
+          status: "error",
+          message:
+            generationError instanceof Error
+              ? generationError.message
+              : "Something went wrong while generating the slideshow.",
+        },
+      }))
     }
   }
 
-  async function generateSlideshow() {
-    if (!selectedProduct || selectedConceptIndex === null) return
-    const concept = concepts[selectedConceptIndex]
-    if (!concept) return
-
-    setGenerationStage("slides")
-    setError(null)
-    setResult(null)
-
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "slideshow",
-          concept,
-          slideCount: framework.slideCount,
-          itemCount: framework.itemCount,
-          layoutId: textStyleId,
-          product: toProductDraft(selectedProduct),
-        }),
-      })
-      const payload: unknown = await response.json()
-      const responseBody = isRecord(payload) ? payload : {}
-
-      if (!response.ok) {
-        throw new Error(
-          typeof responseBody.error === "string"
-            ? responseBody.error
-            : "The AI service could not generate the slideshow."
-        )
-      }
-
-      const generated = generatedSlideshowSchema.safeParse(responseBody.data)
-      if (!generated.success) {
-        throw new Error("The generated slideshow was incomplete. Try again.")
-      }
-
-      setResult(
-        composeGeneratedSlideshow({
-          ...generated.data,
-          slides: generated.data.slides.map((slide, index) => ({
-            ...slide,
-            layoutId: resolveCarouselTextStyle(textStyleId, index),
-          })),
-        })
-      )
-    } catch (generationError) {
-      setError(
-        generationError instanceof Error
-          ? generationError.message
-          : "Something went wrong while generating the slideshow."
-      )
-    } finally {
-      setGenerationStage(null)
-    }
+  function toggleHookExpanded(id: string) {
+    setExpandedHookId((current) => (current === id ? null : id))
   }
 
   function buildScriptPreview() {
@@ -198,37 +128,32 @@ export function CompositionDialog({
   function updateScript(value: string) {
     setScript(value)
     setResult(null)
-    setError(null)
   }
 
   function updateTextStyle(value: TextStyleId) {
     setTextStyleId(value)
     setResult(null)
-    setError(null)
+    setExpandedHookId(null)
+    setCopyByHookId({})
   }
 
   function updateMode(value: ComposerMode) {
     setMode(value)
-    setConcepts([])
-    setSelectedConceptIndex(null)
     setResult(null)
-    setError(null)
+    setExpandedHookId(null)
+    setCopyByHookId({})
   }
 
   function updateFramework(value: HookFrameworkId) {
     setFrameworkId(value)
-    setConcepts([])
-    setSelectedConceptIndex(null)
-    setResult(null)
-    setError(null)
+    setExpandedHookId(null)
+    setCopyByHookId({})
   }
 
   const updateProduct = useCallback((product: ProductProfile | null) => {
     setSelectedProduct(product)
-    setConcepts([])
-    setSelectedConceptIndex(null)
-    setResult(null)
-    setError(null)
+    setExpandedHookId(null)
+    setCopyByHookId({})
   }, [])
 
   return (
@@ -263,7 +188,7 @@ export function CompositionDialog({
                   </h2>
                 </div>
                 <p className="max-w-xl text-xs leading-relaxed text-black/50">
-                  Turn a saved product into three content directions, or split
+                  Pick a framework and write a hook&apos;s full copy, or split
                   copy you already have into editable slides.
                 </p>
               </div>
@@ -329,6 +254,7 @@ export function CompositionDialog({
                     <ProductProfilePicker
                       value={selectedProduct}
                       onChange={updateProduct}
+                      allowNoProduct={false}
                     />
 
                     <fieldset className="mb-6">
@@ -336,15 +262,15 @@ export function CompositionDialog({
                         Framework
                       </legend>
                       <div className="space-y-2">
-                        {hookFrameworks.map((framework) => {
-                          const selected = framework.id === frameworkId
+                        {hookFrameworks.map((option) => {
+                          const selected = option.id === frameworkId
 
                           return (
                             <button
-                              key={framework.id}
+                              key={option.id}
                               type="button"
                               aria-pressed={selected}
-                              onClick={() => updateFramework(framework.id)}
+                              onClick={() => updateFramework(option.id)}
                               className={cn(
                                 "group flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
                                 selected
@@ -356,14 +282,14 @@ export function CompositionDialog({
                               <span className="min-w-0 flex-1">
                                 <span className="flex items-center justify-between gap-3">
                                   <span className="text-xs font-semibold">
-                                    {framework.name}
+                                    {option.name}
                                   </span>
                                   {selected && (
                                     <Check className="size-3.5 shrink-0 text-[#4758c7]" />
                                   )}
                                 </span>
                                 <span className="mt-0.5 block text-[11px] leading-relaxed text-black/45">
-                                  {framework.description}
+                                  {option.description}
                                 </span>
                               </span>
                             </button>
@@ -403,188 +329,152 @@ export function CompositionDialog({
                   </div>
                 </fieldset>
 
-                {error && (
-                  <p
-                    className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-700"
-                    role="alert"
+                {mode === "script" && (
+                  <Button
+                    className="mt-5 w-full"
+                    disabled={script.trim().length < 12}
+                    onClick={() => buildScriptPreview()}
                   >
-                    {error}
-                  </p>
-                )}
-
-                <Button
-                  className="mt-5 w-full"
-                  disabled={
-                    generationStage !== null ||
-                    (mode === "ai"
-                      ? selectedProduct === null
-                      : script.trim().length < 12)
-                  }
-                  onClick={() =>
-                    mode === "ai"
-                      ? void generateConcepts()
-                      : buildScriptPreview()
-                  }
-                >
-                  {generationStage === "concepts" ? (
-                    <LoaderCircle
-                      data-icon="inline-start"
-                      className="animate-spin"
-                    />
-                  ) : (
                     <WandSparkles data-icon="inline-start" />
-                  )}
-                  {generationStage === "concepts"
-                    ? "Finding directions…"
-                    : mode === "ai"
-                      ? concepts.length > 0
-                        ? "Generate 3 new concepts"
-                        : "Generate 3 concepts"
-                      : "Build preview"}
-                </Button>
-                {mode === "ai" && !selectedProduct && (
-                  <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
-                    Choose a saved product or add one from a link first.
-                  </p>
+                    Build preview
+                  </Button>
                 )}
               </div>
 
               <div className="flex min-h-80 flex-col bg-[#efede8] p-5 md:p-7 lg:overflow-hidden">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      {mode === "ai" && !result
-                        ? "Choose a direction"
-                        : "Composition preview"}
-                    </h3>
-                    <p className="text-[11px] text-black/40">
-                      {mode === "ai" && !result
-                        ? "AI infers three angles from the product profile."
-                        : "Review the split before creating your slides."}
-                    </p>
-                  </div>
-                  {result && mode === "ai" ? (
-                    <button
-                      type="button"
-                      onClick={() => setResult(null)}
-                      className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black/50 transition hover:text-black focus-visible:outline-2 focus-visible:outline-[#4758c7]"
-                    >
-                      Back to concepts
-                    </button>
-                  ) : result ? (
-                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black/50">
-                      {result.slides.length} slides
-                    </span>
-                  ) : null}
-                </div>
-
-                {result ? (
+                {mode === "ai" ? (
                   <>
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                      {result.slides.map((slide, index) => {
-                        const hook = getTextLayer(slide, "hook")
-                        const body = getTextLayer(slide, "body")
-                        const overflowRisk = hasTextOverflowRisk(slide)
-
-                        return (
-                          <motion.article
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.025 }}
-                            key={slide.id}
-                            className="rounded-xl border border-black/8 bg-white p-3"
-                          >
-                            <div className="flex gap-3">
-                              <span className="pt-0.5 text-[10px] font-semibold text-black/30 tabular-nums">
-                                {String(index + 1).padStart(2, "0")}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs leading-snug font-semibold">
-                                  {hook?.text || "Untitled slide"}
-                                </p>
-                                {body?.text && (
-                                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-black/48">
-                                    {body.text}
-                                  </p>
-                                )}
-                                <div className="mt-2 flex items-center gap-1 text-[9px] text-black/35">
-                                  <ImageIcon className="size-3" />
-                                  <span className="truncate">
-                                    {slide.imageQuery}
-                                  </span>
-                                </div>
-                              </div>
-                              {overflowRisk && (
-                                <AlertTriangle
-                                  className="size-3.5 shrink-0 text-amber-600"
-                                  aria-label="Text may need manual fitting"
-                                />
-                              )}
-                            </div>
-                          </motion.article>
-                        )
-                      })}
-                    </div>
-                    <Button
-                      className="mt-4 w-full"
-                      onClick={() => onApply(result)}
-                    >
-                      Create slideshow with {result.slides.length} slides
-                    </Button>
-                  </>
-                ) : mode === "ai" && concepts.length > 0 ? (
-                  <>
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                      {concepts.map((concept, index) => (
-                        <ConceptOption
-                          key={`${concept.hook}-${index}`}
-                          concept={concept}
-                          index={index}
-                          selected={selectedConceptIndex === index}
-                          onSelect={() => {
-                            setSelectedConceptIndex(index)
-                            setError(null)
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <Button
-                      className="mt-4 w-full"
-                      disabled={
-                        selectedConceptIndex === null ||
-                        generationStage !== null
-                      }
-                      onClick={() => void generateSlideshow()}
-                    >
-                      {generationStage === "slides" ? (
-                        <LoaderCircle
-                          data-icon="inline-start"
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <ChevronRight data-icon="inline-end" />
-                      )}
-                      {generationStage === "slides"
-                        ? "Writing slides…"
-                        : `Turn this into ${framework.slideCount} slides`}
-                    </Button>
-                  </>
-                ) : (
-                  <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
-                    <div>
-                      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
-                        <WandSparkles className="size-4" />
-                      </div>
-                      <p className="text-xs font-semibold">No preview yet</p>
-                      <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
-                        {mode === "ai"
-                          ? selectedProduct
-                            ? "Generate concepts to see three different ways into this product's story."
-                            : "Choose a product first. Its profile gives the generator enough context to find the angles."
-                          : "Add at least a sentence, choose a layout, then build the composition."}
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold">Pick a hook</h3>
+                      <p className="text-[11px] text-black/40">
+                        Choose one of your saved {framework.name} hooks, then
+                        write its full copy.
                       </p>
                     </div>
-                  </div>
+
+                    {frameworkHooks.length === 0 ? (
+                      <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
+                        <div>
+                          <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
+                            <WandSparkles className="size-4" />
+                          </div>
+                          <p className="text-xs font-semibold">
+                            No {framework.name} hooks yet
+                          </p>
+                          <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
+                            Generate some in the Copy tab first, then come back
+                            here to write the full slideshow.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-black/10 bg-white">
+                        <div className="divide-y divide-black/8">
+                          {frameworkHooks.map((hook) => (
+                            <HookRow
+                              key={hook.id}
+                              hook={hook}
+                              expanded={expandedHookId === hook.id}
+                              onToggleExpand={() => toggleHookExpanded(hook.id)}
+                              copyState={copyByHookId[hook.id]}
+                              copyDisabled={!selectedProduct}
+                              onGenerateCopy={() => void generateCopy(hook)}
+                              onCreateSlideshow={onApply}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold">
+                          Composition preview
+                        </h3>
+                        <p className="text-[11px] text-black/40">
+                          Review the split before creating your slides.
+                        </p>
+                      </div>
+                      {result && (
+                        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black/50">
+                          {result.slides.length} slides
+                        </span>
+                      )}
+                    </div>
+
+                    {result ? (
+                      <>
+                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                          {result.slides.map((slide, index) => {
+                            const hook = getTextLayer(slide, "hook")
+                            const body = getTextLayer(slide, "body")
+                            const overflowRisk = hasTextOverflowRisk(slide)
+
+                            return (
+                              <motion.article
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.025 }}
+                                key={slide.id}
+                                className="rounded-xl border border-black/8 bg-white p-3"
+                              >
+                                <div className="flex gap-3">
+                                  <span className="pt-0.5 text-[10px] font-semibold text-black/30 tabular-nums">
+                                    {String(index + 1).padStart(2, "0")}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs leading-snug font-semibold">
+                                      {hook?.text || "Untitled slide"}
+                                    </p>
+                                    {body?.text && (
+                                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-black/48">
+                                        {body.text}
+                                      </p>
+                                    )}
+                                    <div className="mt-2 flex items-center gap-1 text-[9px] text-black/35">
+                                      <ImageIcon className="size-3" />
+                                      <span className="truncate">
+                                        {slide.imageQuery}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {overflowRisk && (
+                                    <AlertTriangle
+                                      className="size-3.5 shrink-0 text-amber-600"
+                                      aria-label="Text may need manual fitting"
+                                    />
+                                  )}
+                                </div>
+                              </motion.article>
+                            )
+                          })}
+                        </div>
+                        <Button
+                          className="mt-4 w-full"
+                          onClick={() => onApply(result)}
+                        >
+                          Create slideshow with {result.slides.length} slides
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-black/12 bg-white/45 px-8 text-center">
+                        <div>
+                          <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-black/35 shadow-sm">
+                            <WandSparkles className="size-4" />
+                          </div>
+                          <p className="text-xs font-semibold">
+                            No preview yet
+                          </p>
+                          <p className="mt-1 max-w-52 text-[11px] leading-relaxed text-black/40">
+                            Add at least a sentence, choose a layout, then build
+                            the composition.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -593,83 +483,6 @@ export function CompositionDialog({
       )}
     </AnimatePresence>
   )
-}
-
-function ConceptOption({
-  concept,
-  index,
-  onSelect,
-  selected,
-}: {
-  concept: GeneratedConcept
-  index: number
-  onSelect: () => void
-  selected: boolean
-}) {
-  const formatName =
-    copyFormats.find((format) => format.id === concept.copyFormatId)?.name ??
-    "Slideshow list"
-
-  return (
-    <motion.button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04 }}
-      className={cn(
-        "group relative w-full overflow-hidden rounded-xl border bg-white p-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
-        selected
-          ? "border-[#4758c7] shadow-[0_8px_24px_rgba(71,88,199,.12)]"
-          : "border-black/8 hover:border-black/20"
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute inset-y-0 left-0 w-1 transition",
-          selected ? "bg-[#4758c7]" : "bg-transparent"
-        )}
-      />
-      <span className="mb-2 flex items-center justify-between gap-3">
-        <span className="rounded-full bg-[#f0eee9] px-2 py-1 text-[9px] font-semibold text-black/45">
-          {formatName}
-        </span>
-        <span
-          className={cn(
-            "grid size-5 place-items-center rounded-full border transition",
-            selected
-              ? "border-[#4758c7] bg-[#4758c7] text-white"
-              : "border-black/15 text-transparent group-hover:border-black/30"
-          )}
-        >
-          <Check className="size-3" />
-        </span>
-      </span>
-      <span className="block text-sm leading-snug font-semibold">
-        {concept.hook}
-      </span>
-      <span className="mt-2 block text-[11px] leading-relaxed text-black/48">
-        {concept.angle}
-      </span>
-      <span className="mt-3 block border-t border-black/7 pt-2 text-[10px] leading-relaxed text-black/38">
-        Product: {concept.productPlacement}
-      </span>
-    </motion.button>
-  )
-}
-
-function toProductDraft(product: ProductProfile) {
-  return {
-    name: product.name,
-    niche: product.niche,
-    valueProposition: product.valueProposition,
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
 
 function FrameworkMarker({ selected }: { selected: boolean }) {

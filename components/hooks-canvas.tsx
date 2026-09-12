@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Lightbulb,
   LoaderCircle,
-  Trash2,
   WandSparkles,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -13,14 +12,13 @@ import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ProductProfilePicker } from "@/components/product-profile-picker"
 import { cn } from "@/lib/utils"
+import { type CompositionResult } from "@/lib/composition"
 import {
-  composeGeneratedSlideshow,
-  type CompositionResult,
-} from "@/lib/composition"
-import {
-  generatedHooksSchema,
-  generatedSlideshowSchema,
-} from "@/lib/ai/slideshow-generation"
+  HookRow,
+  requestHookCopy,
+  type HookCopyState,
+} from "@/components/hook-copy-list"
+import { generatedHooksSchema } from "@/lib/ai/slideshow-generation"
 import {
   hookFrameworks,
   type HookFramework,
@@ -33,13 +31,7 @@ import {
   type SavedHook,
 } from "@/lib/hooks-storage"
 import { createProjectFromComposition } from "@/lib/project-storage"
-import { getTextLayer, resolveCarouselTextStyle } from "@/lib/slideshow"
 import type { ProductProfile } from "@/lib/products/product-profile"
-
-type HookCopyState =
-  | { status: "generating" }
-  | { status: "error"; message: string }
-  | { status: "ready"; result: CompositionResult }
 
 export function HooksCanvas() {
   const router = useRouter()
@@ -144,41 +136,11 @@ export function HooksCanvas() {
     }))
 
     try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "slideshow-from-hook",
-          hook: hook.text,
-          slideCount: framework.slideCount,
-          itemCount: framework.itemCount,
-          layoutId: "clean-white",
-          copyFormatId: framework.copyFormatId,
-          product: toProductDraft(selectedProduct),
-        }),
-      })
-      const payload: unknown = await response.json()
-      const responseBody = isRecord(payload) ? payload : {}
-
-      if (!response.ok) {
-        throw new Error(
-          typeof responseBody.error === "string"
-            ? responseBody.error
-            : "The AI service could not generate the slideshow."
-        )
-      }
-
-      const generated = generatedSlideshowSchema.safeParse(responseBody.data)
-      if (!generated.success) {
-        throw new Error("The generated slideshow was incomplete. Try again.")
-      }
-
-      const result = composeGeneratedSlideshow({
-        ...generated.data,
-        slides: generated.data.slides.map((slide, index) => ({
-          ...slide,
-          layoutId: resolveCarouselTextStyle("clean-white", index),
-        })),
+      const result = await requestHookCopy({
+        hook: hook.text,
+        framework,
+        layoutId: "clean-white",
+        product: selectedProduct,
       })
 
       setCopyByHookId((current) => ({
@@ -324,58 +286,21 @@ export function HooksCanvas() {
                     ) : (
                       <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-black/10 bg-white">
                         <div className="divide-y divide-black/8">
-                          {frameworkHooks.map((hook) => {
-                            const hookExpanded = expandedHookIds.has(hook.id)
-
-                            return (
-                              <div key={hook.id} className="group px-4 py-3">
-                                <div className="flex items-start gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleHookExpanded(hook.id)}
-                                    aria-expanded={hookExpanded}
-                                    className="flex min-w-0 flex-1 items-start gap-2 text-left"
-                                  >
-                                    <p
-                                      className={cn(
-                                        "min-w-0 flex-1 text-sm leading-snug font-medium",
-                                        !hookExpanded && "truncate"
-                                      )}
-                                    >
-                                      {hook.text}
-                                    </p>
-                                    <ChevronDown
-                                      className={cn(
-                                        "mt-0.5 size-3.5 shrink-0 text-black/25 transition",
-                                        hookExpanded && "rotate-180"
-                                      )}
-                                    />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    aria-label="Delete hook"
-                                    onClick={() => removeHook(hook.id)}
-                                    className="grid size-6 shrink-0 place-items-center rounded-full text-black/25 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#4758c7]"
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </button>
-                                </div>
-
-                                {hookExpanded && (
-                                  <div className="mt-3 border-t border-black/8 pt-3">
-                                    <HookCopyPanel
-                                      copyState={copyByHookId[hook.id]}
-                                      disabled={!selectedProduct}
-                                      onGenerate={() =>
-                                        void generateCopy(hook, framework)
-                                      }
-                                      onCreate={createSlideshow}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
+                          {frameworkHooks.map((hook) => (
+                            <HookRow
+                              key={hook.id}
+                              hook={hook}
+                              expanded={expandedHookIds.has(hook.id)}
+                              onToggleExpand={() => toggleHookExpanded(hook.id)}
+                              onDelete={() => removeHook(hook.id)}
+                              copyState={copyByHookId[hook.id]}
+                              copyDisabled={!selectedProduct}
+                              onGenerateCopy={() =>
+                                void generateCopy(hook, framework)
+                              }
+                              onCreateSlideshow={createSlideshow}
+                            />
+                          ))}
                         </div>
                       </div>
                     )}
@@ -386,91 +311,6 @@ export function HooksCanvas() {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function HookCopyPanel({
-  copyState,
-  disabled,
-  onGenerate,
-  onCreate,
-}: {
-  copyState: HookCopyState | undefined
-  disabled: boolean
-  onGenerate: () => void
-  onCreate: (result: CompositionResult) => void
-}) {
-  if (copyState?.status === "generating") {
-    return (
-      <Button size="sm" variant="outline" disabled>
-        <LoaderCircle data-icon="inline-start" className="animate-spin" />
-        Writing copy…
-      </Button>
-    )
-  }
-
-  if (!copyState || copyState.status === "error") {
-    return (
-      <div>
-        {copyState?.status === "error" && (
-          <p className="mb-2 text-xs leading-relaxed text-red-700">
-            {copyState.message}
-          </p>
-        )}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          onClick={onGenerate}
-        >
-          <WandSparkles data-icon="inline-start" />
-          Generate copy
-        </Button>
-        {disabled && (
-          <p className="mt-2 text-[10px] leading-relaxed text-black/40">
-            Choose a product above first.
-          </p>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <div className="space-y-2">
-        {copyState.result.slides.map((slide, index) => {
-          const slideHook = getTextLayer(slide, "hook")
-          const slideBody = getTextLayer(slide, "body")
-
-          return (
-            <div
-              key={slide.id}
-              className="rounded-lg border border-black/8 bg-[#faf9f7] p-2.5"
-            >
-              <p className="text-[10px] font-semibold text-black/35">
-                {String(index + 1).padStart(2, "0")}
-              </p>
-              <p className="text-xs leading-snug font-semibold">
-                {slideHook?.text || "Untitled slide"}
-              </p>
-              {slideBody?.text && (
-                <p className="mt-1 text-[11px] leading-relaxed text-black/55">
-                  {slideBody.text}
-                </p>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Button size="sm" onClick={() => onCreate(copyState.result)}>
-          Create slideshow
-        </Button>
-        <Button size="sm" variant="outline" onClick={onGenerate}>
-          Regenerate
-        </Button>
-      </div>
     </div>
   )
 }
