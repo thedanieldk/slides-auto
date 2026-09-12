@@ -27,7 +27,12 @@ import {
   generatedSlideshowSchema,
   type GeneratedConcept,
 } from "@/lib/ai/slideshow-generation"
-import { copyFormats, type CopyFormatId } from "@/lib/ai/copy-formats"
+import { copyFormats } from "@/lib/ai/copy-formats"
+import {
+  getHookFramework,
+  hookFrameworks,
+  type HookFrameworkId,
+} from "@/lib/ai/frameworks"
 import {
   getTextLayer,
   resolveCarouselTextStyle,
@@ -51,7 +56,9 @@ export function CompositionDialog({
 }: CompositionDialogProps) {
   const [script, setScript] = useState("")
   const [mode, setMode] = useState<ComposerMode>("ai")
-  const [copyFormatId, setCopyFormatId] = useState<CopyFormatId>("smart")
+  const [frameworkId, setFrameworkId] = useState<HookFrameworkId>(
+    hookFrameworks[0]!.id
+  )
   const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
     null
   )
@@ -91,7 +98,7 @@ export function CompositionDialog({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           mode: "concepts",
-          copyFormatId,
+          copyFormatId: getHookFramework(frameworkId).copyFormatId,
           product: toProductDraft(selectedProduct),
         }),
       })
@@ -206,8 +213,8 @@ export function CompositionDialog({
     setError(null)
   }
 
-  function updateCopyFormat(value: CopyFormatId) {
-    setCopyFormatId(value)
+  function updateFramework(value: HookFrameworkId) {
+    setFrameworkId(value)
     setConcepts([])
     setSelectedConceptIndex(null)
     setResult(null)
@@ -324,18 +331,18 @@ export function CompositionDialog({
 
                     <fieldset className="mb-6">
                       <legend className="mb-3 text-xs font-semibold text-black/60">
-                        Copy format
+                        Framework
                       </legend>
                       <div className="space-y-2">
-                        {copyFormats.map((format) => {
-                          const selected = format.id === copyFormatId
+                        {hookFrameworks.map((framework) => {
+                          const selected = framework.id === frameworkId
 
                           return (
                             <button
-                              key={format.id}
+                              key={framework.id}
                               type="button"
                               aria-pressed={selected}
-                              onClick={() => updateCopyFormat(format.id)}
+                              onClick={() => updateFramework(framework.id)}
                               className={cn(
                                 "group flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
                                 selected
@@ -343,24 +350,18 @@ export function CompositionDialog({
                                   : "border-black/10 bg-white hover:border-black/20"
                               )}
                             >
-                              <FormatMarker
-                                formatId={format.id}
-                                selected={selected}
-                              />
+                              <FrameworkMarker selected={selected} />
                               <span className="min-w-0 flex-1">
                                 <span className="flex items-center justify-between gap-3">
                                   <span className="text-xs font-semibold">
-                                    {format.name}
+                                    {framework.name}
                                   </span>
                                   {selected && (
                                     <Check className="size-3.5 shrink-0 text-[#4758c7]" />
                                   )}
                                 </span>
                                 <span className="mt-0.5 block text-[11px] leading-relaxed text-black/45">
-                                  {format.description}
-                                </span>
-                                <span className="mt-1 block text-[10px] font-medium text-black/35">
-                                  Product: {format.productRole}
+                                  {framework.description}
                                 </span>
                               </span>
                             </button>
@@ -696,13 +697,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function FormatMarker({
-  formatId,
-  selected,
-}: {
-  formatId: CopyFormatId
-  selected: boolean
-}) {
+function FrameworkMarker({ selected }: { selected: boolean }) {
   return (
     <span
       aria-hidden="true"
@@ -713,19 +708,11 @@ function FormatMarker({
           : "border-black/8 bg-[#f6f5f2] text-black/35"
       )}
     >
-      {formatId === "smart" ? (
-        <WandSparkles className="size-4" />
-      ) : (
-        <span className="grid gap-0.5 text-[8px] leading-none font-bold tabular-nums">
-          <span>1 —</span>
-          <span
-            className={cn(formatId === "helpful-habits" && "text-[#f06f5d]")}
-          >
-            2 —
-          </span>
-          <span>3 —</span>
-        </span>
-      )}
+      <span className="grid gap-0.5 text-[8px] leading-none font-bold tabular-nums">
+        <span>1 —</span>
+        <span>2 —</span>
+        <span>3 —</span>
+      </span>
     </span>
   )
 }
