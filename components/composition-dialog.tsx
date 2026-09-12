@@ -66,6 +66,8 @@ export function CompositionDialog({
   const frameworkHooks = savedHooks.filter(
     (hook) => hook.frameworkId === frameworkId
   )
+  const selectedHook =
+    frameworkHooks.find((hook) => hook.id === selectedHookId) ?? null
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -86,6 +88,12 @@ export function CompositionDialog({
       cancelled = true
     }
   }, [open])
+
+  function applyExistingCopy() {
+    if (!selectedHook?.generatedCopy) return
+    setResult(selectedHook.generatedCopy)
+    setError(null)
+  }
 
   async function generateSlideshowFromHook() {
     if (!selectedProduct || selectedHookId === null) return
@@ -373,7 +381,13 @@ export function CompositionDialog({
                         selectedHookId === null ||
                         generationStage !== null
                       }
-                      onClick={() => void generateSlideshowFromHook()}
+                      onClick={() => {
+                        if (!result && selectedHook?.generatedCopy) {
+                          applyExistingCopy()
+                        } else {
+                          void generateSlideshowFromHook()
+                        }
+                      }}
                     >
                       {generationStage === "slides" ? (
                         <LoaderCircle
@@ -387,7 +401,9 @@ export function CompositionDialog({
                         ? "Writing slides…"
                         : result
                           ? "Regenerate slides"
-                          : `Turn this into ${framework.slideCount} slides`}
+                          : selectedHook?.generatedCopy
+                            ? "Use this copy"
+                            : `Turn this into ${framework.slideCount} slides`}
                     </Button>
                     {!selectedProduct && (
                       <p className="mt-2 text-center text-[10px] leading-relaxed text-black/40">
