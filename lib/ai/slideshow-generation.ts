@@ -59,6 +59,7 @@ export const slideshowGenerationRequestSchema = z.object({
   mode: z.literal("slideshow"),
   concept: generatedConceptSchema,
   slideCount: z.number().int().min(2).max(10),
+  itemCount: z.number().int().min(1).max(10).optional(),
   layoutId: z.enum(textStyleIds),
   product: productProfileDraftSchema,
 })

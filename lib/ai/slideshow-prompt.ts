@@ -50,9 +50,13 @@ ${createProductContext(request.product)}`
   }
 
   if (request.mode === "slideshow") {
+    const structureInstructions = request.itemCount
+      ? `Slide 1 is a dedicated title slide using the concept's hook below, with an empty body or one short supporting sentence — no numbering here. Slides 2 through ${request.slideCount} are the numbered list itself: exactly ${request.itemCount} items, one per slide, numbered 1 through ${request.itemCount} in order. Do not repeat the title's promise as its own numbered item, and do not merge or omit any item.`
+      : `The first slide should make someone want to keep reading without sounding clickbait-y. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.`
+
     return `Create exactly ${request.slideCount} connected slideshow slides from the selected concept below.
 
-The first slide should make someone want to keep reading without sounding clickbait-y. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.
+${structureInstructions}
 Fill every numbered slide field in the response format. Do not merge or omit slides.
 
 ${getCopyFormatInstructions(request.concept.copyFormatId)}

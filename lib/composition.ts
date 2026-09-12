@@ -15,7 +15,6 @@ import { DEFAULT_IMAGE_QUERY } from "@/lib/images/image-provider"
 
 export type CompositionOptions = {
   script: string
-  slideCount: number
   layoutId: TextStyleId
 }
 
@@ -26,20 +25,17 @@ export type CompositionResult = {
 
 export function composeScript({
   script,
-  slideCount,
   layoutId,
 }: CompositionOptions): CompositionResult {
   const cleanScript = script.replace(/\r/g, "").trim()
-  const requestedCount = Math.max(2, Math.min(10, Math.round(slideCount)))
-  const pieces = preparePieces(cleanScript, requestedCount)
-  const groups = groupPieces(pieces, Math.min(requestedCount, pieces.length))
+  const pieces = preparePieces(cleanScript)
 
-  const slides = groups.map((group, index) => {
+  const slides = pieces.map((piece, index) => {
     const slide = createSlide(
       index + 1,
       resolveCarouselTextStyle(layoutId, index)
     )
-    const { hook, body } = createSlideCopy(group)
+    const { hook, body } = createSlideCopy(piece)
     const textLayers = slide.textLayers.map((layer) => {
       if (layer.role === "hook") return fitTextLayer({ ...layer, text: hook })
       if (layer.role === "body") return fitTextLayer({ ...layer, text: body })
@@ -108,7 +104,7 @@ export function hasTextOverflowRisk(slide: SlideshowSlide) {
   )
 }
 
-function preparePieces(script: string, desiredCount: number) {
+function preparePieces(script: string) {
   const paragraphs = script
     .split(/\n\s*\n/)
     .map(cleanPiece)
@@ -123,44 +119,12 @@ function preparePieces(script: string, desiredCount: number) {
 
   if (pieces.length === 1) pieces = splitSentences(pieces[0]!)
 
-  while (pieces.length < desiredCount) {
-    const longestIndex = pieces.reduce(
-      (bestIndex, piece, index) =>
-        piece.split(/\s+/).length > pieces[bestIndex]!.split(/\s+/).length
-          ? index
-          : bestIndex,
-      0
-    )
-    const longest = pieces[longestIndex]!
-    const words = longest.split(/\s+/)
-    if (words.length < 8) break
-
-    const midpoint = Math.ceil(words.length / 2)
-    pieces.splice(
-      longestIndex,
-      1,
-      words.slice(0, midpoint).join(" "),
-      words.slice(midpoint).join(" ")
-    )
-  }
-
   return pieces.length > 0 ? pieces : ["Untitled slideshow"]
 }
 
-function groupPieces(pieces: string[], count: number) {
-  return Array.from({ length: count }, (_, index) => {
-    const start = Math.floor((index * pieces.length) / count)
-    const end = Math.floor(((index + 1) * pieces.length) / count)
-    return pieces.slice(start, Math.max(start + 1, end))
-  })
-}
-
-function createSlideCopy(group: string[]) {
-  const [first = "Untitled slide", ...rest] = group
-  if (rest.length > 0) return { hook: first, body: rest.join(" ") }
-
-  const words = first.split(/\s+/)
-  if (words.length <= 13) return { hook: first, body: "" }
+function createSlideCopy(piece: string) {
+  const words = piece.split(/\s+/)
+  if (words.length <= 13) return { hook: piece, body: "" }
 
   const breakpoint = Math.min(12, Math.ceil(words.length * 0.38))
   return {

@@ -66,13 +66,14 @@ export function CompositionDialog({
   const [selectedConceptIndex, setSelectedConceptIndex] = useState<
     number | null
   >(null)
-  const [slideCount, setSlideCount] = useState(5)
   const [textStyleId, setTextStyleId] = useState<TextStyleId>("clean-white")
   const [result, setResult] = useState<CompositionResult | null>(null)
   const [generationStage, setGenerationStage] = useState<
     "concepts" | "slides" | null
   >(null)
   const [error, setError] = useState<string | null>(null)
+
+  const framework = getHookFramework(frameworkId)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -147,7 +148,8 @@ export function CompositionDialog({
         body: JSON.stringify({
           mode: "slideshow",
           concept,
-          slideCount,
+          slideCount: framework.slideCount,
+          itemCount: framework.itemCount,
           layoutId: textStyleId,
           product: toProductDraft(selectedProduct),
         }),
@@ -190,7 +192,7 @@ export function CompositionDialog({
 
   function buildScriptPreview() {
     if (script.trim().length < 12) return
-    setResult(composeScript({ script, slideCount, layoutId: textStyleId }))
+    setResult(composeScript({ script, layoutId: textStyleId }))
   }
 
   function updateScript(value: string) {
@@ -371,33 +373,6 @@ export function CompositionDialog({
                     </fieldset>
                   </>
                 )}
-
-                <div className="mb-6">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold text-black/60">
-                      Number of slides
-                    </p>
-                    <output className="rounded-full bg-[#ebe9e4] px-2 py-0.5 text-xs font-semibold tabular-nums">
-                      {slideCount}
-                    </output>
-                  </div>
-                  <input
-                    aria-label="Number of slides"
-                    type="range"
-                    min="2"
-                    max="10"
-                    value={slideCount}
-                    onChange={(event) => {
-                      setSlideCount(Number(event.target.value))
-                      setResult(null)
-                    }}
-                    className="w-full accent-[#4758c7]"
-                  />
-                  <div className="flex justify-between text-[10px] text-black/35">
-                    <span>2</span>
-                    <span>10</span>
-                  </div>
-                </div>
 
                 <fieldset>
                   <legend className="mb-3 text-xs font-semibold text-black/60">
@@ -591,7 +566,7 @@ export function CompositionDialog({
                       )}
                       {generationStage === "slides"
                         ? "Writing slides…"
-                        : `Turn this into ${slideCount} slides`}
+                        : `Turn this into ${framework.slideCount} slides`}
                     </Button>
                   </>
                 ) : (
