@@ -14,7 +14,7 @@ export const imageSearchResultSchema = z.object({
   photoUrl: z.string().url(),
   previewUrl: z.string().url(),
   imageUrl: z.string().url(),
-  provider: z.literal("pexels"),
+  provider: z.literal("pinterest"),
 })
 
 export const imageSearchResponseSchema = z.object({

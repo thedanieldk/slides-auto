@@ -16,13 +16,13 @@ export async function searchImages(
     throw new Error(
       typeof responseBody.error === "string"
         ? responseBody.error
-        : "Pexels could not complete the image search."
+        : "Pinterest could not complete the image search."
     )
   }
 
   const parsedResponse = imageSearchResponseSchema.safeParse(responseBody.data)
   if (!parsedResponse.success) {
-    throw new Error("Pexels returned an unexpected response. Try again.")
+    throw new Error("Pinterest returned an unexpected response. Try again.")
   }
 
   return parsedResponse.data.results

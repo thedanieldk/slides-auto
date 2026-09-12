@@ -1,5 +1,5 @@
 import { imageSearchRequestSchema } from "@/lib/images/image-provider"
-import { PexelsProvider } from "@/lib/images/providers/pexels"
+import { PinterestProvider } from "@/lib/images/providers/pinterest"
 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get("query")
@@ -11,16 +11,16 @@ export async function GET(request: Request) {
     )
   }
 
-  const apiKey = process.env.PEXELS_API_KEY
-  if (!apiKey) {
+  const apiToken = process.env.APIFY_API
+  if (!apiToken) {
     return Response.json(
-      { error: "Add PEXELS_API_KEY to .env.local, then restart the app." },
+      { error: "Add APIFY_API to .env.local, then restart the app." },
       { status: 503 }
     )
   }
 
   try {
-    const provider = new PexelsProvider(apiKey)
+    const provider = new PinterestProvider(apiToken)
     const results = await provider.search(parsedRequest.data.query)
     return Response.json({ data: { results } })
   } catch (error) {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "Something went wrong while searching Pexels.",
+            : "Something went wrong while searching Pinterest.",
       },
       { status: 502 }
     )

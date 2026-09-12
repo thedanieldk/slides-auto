@@ -28,7 +28,7 @@ export type SlideImage = {
   name: string
   dataUrl: string
   source?: {
-    provider: "pexels"
+    provider: "pinterest"
     photographer: string
     photographerUrl: string
     photoUrl: string

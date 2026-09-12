@@ -656,7 +656,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       )
       const usedImageIds = new Set(
         project.slides.flatMap((slide) =>
-          slide.image?.id.startsWith("pexels-") ? [slide.image.id] : []
+          slide.image?.id.startsWith("pinterest-") ? [slide.image.id] : []
         )
       )
       const selectedImages = new Map<string, SlideImage>()
@@ -670,7 +670,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
 
         const result =
           search.value.results.find(
-            (candidate) => !usedImageIds.has(`pexels-${candidate.id}`)
+            (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
           ) ?? search.value.results[0]
         if (!result) {
           failedSearches += 1
@@ -1443,7 +1443,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                   onClick={() => setImageSearchOpen(true)}
                 >
                   <Search data-icon="inline-start" />
-                  Search Pexels
+                  Search Pinterest
                 </Button>
                 <Button
                   className="w-full bg-[#4758c7] text-white hover:bg-[#3e4db0]"
@@ -1566,11 +1566,11 @@ function getAppliedTextStyle(slides: SlideshowSlide[]): TextStyleId | null {
 
 function toSlideImage(result: ImageSearchResult): SlideImage {
   return {
-    id: `pexels-${result.id}`,
-    name: result.alt || "Pexels photo",
+    id: `pinterest-${result.id}`,
+    name: result.alt || "Pinterest photo",
     dataUrl: result.imageUrl,
     source: {
-      provider: "pexels",
+      provider: "pinterest",
       photographer: result.photographer,
       photographerUrl: result.photographerUrl,
       photoUrl: result.photoUrl,

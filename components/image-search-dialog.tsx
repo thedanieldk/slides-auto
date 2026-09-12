@@ -74,11 +74,11 @@ export function ImageSearchDialog({
 
   function chooseImage(result: ImageSearchResult) {
     onSelect({
-      id: `pexels-${result.id}`,
-      name: result.alt || "Pexels photo",
+      id: `pinterest-${result.id}`,
+      name: result.alt || "Pinterest photo",
       dataUrl: result.imageUrl,
       source: {
-        provider: "pexels",
+        provider: "pinterest",
         photographer: result.photographer,
         photographerUrl: result.photographerUrl,
         photoUrl: result.photoUrl,
