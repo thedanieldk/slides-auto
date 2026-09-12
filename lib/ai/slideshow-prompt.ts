@@ -86,7 +86,9 @@ Product placement: ${request.concept.productPlacement}
 
   if (request.mode === "slideshow-from-hook") {
     const structureInstructions = request.itemCount
-      ? `Slide 1 is a dedicated title slide: its hook must stay essentially this exact line: "${request.hook}", and its body should be empty or one short supporting sentence — no numbering here. Slides 2 through ${request.slideCount} are the numbered list itself: exactly ${request.itemCount} items, one per slide, numbered 1 through ${request.itemCount} in order. Do not repeat the title's promise as its own numbered item, and do not merge or omit any item.`
+      ? `Slide 1 is a dedicated title slide: its hook must stay essentially this exact line: "${request.hook}", and its body should be empty or one short supporting sentence — no numbering here. Slides 2 through ${request.slideCount} are the numbered list itself: exactly ${request.itemCount} items, one per slide, numbered 1 through ${request.itemCount} in order. Do not repeat the title's promise as its own numbered item, and do not merge or omit any item.
+
+In numbered item 3 or 4 only (pick whichever fits better), explicitly mention "${request.product.name}" by name as a genuine, specific detail of how it was used — not a slogan or call to action. Do not name the product in the title slide or in any other numbered item; it should appear exactly once, in that one item.`
       : `Slide 1's hook must stay essentially this exact line: "${request.hook}"\nInfer a natural content angle and a way to weave in the product from the hook and product profile below. Each later slide should move the thought forward. The last slide should feel like a natural landing, not a slogan.`
 
     return `Create exactly ${request.slideCount} connected slideshow slides that build on the fixed opening hook below.
