@@ -696,12 +696,16 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
           continue
         }
 
+        const [query] = groupEntries[index]!
         const { slides, results } = search.value
         for (const slide of slides) {
           const result = results.find(
             (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
           )
           if (!result) {
+            console.error(
+              `Pinterest search for "${query}" returned ${results.length} results, none usable (all already used or none found)`
+            )
             failedCount += 1
             continue
           }
