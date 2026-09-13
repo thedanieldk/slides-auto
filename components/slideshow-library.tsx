@@ -23,6 +23,8 @@ import {
   SELECTED_PROFILE_STORAGE_KEY,
 } from "@/components/product-profile-picker"
 import { SlideExportCard } from "@/components/slideshow-studio"
+import { TextStyleMiniature } from "@/components/text-style-miniature"
+import { cn } from "@/lib/utils"
 import type { CompositionResult } from "@/lib/composition"
 import { hookFrameworks } from "@/lib/ai/frameworks"
 import { generatedHooksSchema } from "@/lib/ai/slideshow-generation"
@@ -35,7 +37,12 @@ import {
 } from "@/lib/actions/slideshows"
 import { listProductProfiles } from "@/lib/actions/products"
 import type { ProductProfile } from "@/lib/products/product-profile"
-import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
+import {
+  slideshowThemes,
+  textStyles,
+  type SlideshowProject,
+  type TextStyleId,
+} from "@/lib/slideshow"
 
 const CREATE_BATCH_SIZE = 5
 const createFramework = hookFrameworks[0]!
@@ -57,9 +64,12 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("formats")
   const [hasVisitedCopyTab, setHasVisitedCopyTab] = useState(false)
-  const [createProductPromptOpen, setCreateProductPromptOpen] = useState(false)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createPromptProduct, setCreatePromptProduct] =
     useState<ProductProfile | null>(null)
+  const [createTextStyleId, setCreateTextStyleId] = useState<TextStyleId>(
+    textStyles[0]!.id
+  )
   const [isCreating, setIsCreating] = useState(false)
   const [createProgress, setCreateProgress] = useState<{
     done: number
@@ -101,16 +111,16 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
     const preferred =
       products.find((product) => product.id === storedId) ?? products[0] ?? null
 
-    if (preferred) {
-      void runCreateBatch(preferred)
-    } else {
-      setCreatePromptProduct(null)
-      setCreateProductPromptOpen(true)
-    }
+    setCreatePromptProduct(preferred)
+    setCreateTextStyleId(textStyles[0]!.id)
+    setCreateDialogOpen(true)
   }
 
-  async function runCreateBatch(product: ProductProfile) {
-    setCreateProductPromptOpen(false)
+  async function runCreateBatch(
+    product: ProductProfile,
+    layoutId: TextStyleId
+  ) {
+    setCreateDialogOpen(false)
     setIsCreating(true)
     setCreateProgress({ done: 0, total: CREATE_BATCH_SIZE })
 
@@ -152,7 +162,7 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
           const composition = await requestHookCopy({
             hook: hookText,
             framework: createFramework,
-            layoutId: "clean-white",
+            layoutId,
             product,
           })
           const filled = await autoFillSlideImages(composition.slides)
@@ -326,36 +336,60 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
         onApply={handleComposed}
       />
 
-      {createProductPromptOpen && (
+      {createDialogOpen && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-[#171820]/55 p-4"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) {
-              setCreateProductPromptOpen(false)
+              setCreateDialogOpen(false)
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-2xl border border-black/10 bg-[#f8f7f4] p-5 shadow-2xl">
-            <p className="mb-1 text-sm font-semibold">
-              Pick a product to create with
-            </p>
+          <div className="max-h-[85svh] w-full max-w-sm overflow-y-auto rounded-2xl border border-black/10 bg-[#f8f7f4] p-5 shadow-2xl">
+            <p className="mb-1 text-sm font-semibold">Create 5 slideshows</p>
             <p className="mb-4 text-xs leading-relaxed text-black/50">
-              Create writes hooks, full copy, slides, and images for this
-              product automatically.
+              Writes hooks, full copy, slides, and images automatically for the
+              product and text style below.
             </p>
             <ProductProfilePicker
               value={createPromptProduct}
               onChange={setCreatePromptProduct}
               allowNoProduct={false}
             />
+            <fieldset className="mb-5">
+              <legend className="mb-3 text-xs font-semibold text-black/60">
+                Text style
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {textStyles.map((textStyle) => (
+                  <button
+                    key={textStyle.id}
+                    type="button"
+                    onClick={() => setCreateTextStyleId(textStyle.id)}
+                    className={cn(
+                      "rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                      textStyle.id === createTextStyleId
+                        ? "border-[#4758c7] bg-[#eef0ff]"
+                        : "border-black/10 bg-white hover:border-black/20"
+                    )}
+                  >
+                    <TextStyleMiniature textStyleId={textStyle.id} />
+                    <span className="mt-2 block text-[11px] font-semibold">
+                      {textStyle.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
             <Button
               className="w-full"
               disabled={!createPromptProduct}
               onClick={() =>
-                createPromptProduct && void runCreateBatch(createPromptProduct)
+                createPromptProduct &&
+                void runCreateBatch(createPromptProduct, createTextStyleId)
               }
             >
-              Continue
+              Create 5 slideshows
             </Button>
           </div>
         </div>
