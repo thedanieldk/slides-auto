@@ -21,6 +21,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toBlob } from "html-to-image"
@@ -77,6 +78,8 @@ import {
   slideshowThemes,
   starterProject,
   textStyles,
+  type ImageOverlay,
+  type LayerRect,
   type SlideshowProject,
   type SlideshowSlide,
   type SlideshowTheme,
@@ -154,6 +157,9 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   )
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null)
+  const [selectedImageLayerId, setSelectedImageLayerId] = useState<
+    string | null
+  >(null)
   const [contentImages, setContentImages] = useState<ProductContentImage[]>([])
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -161,6 +167,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   const slideCanvasRef = useRef<HTMLDivElement>(null)
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
+  const imageLayerInteractionRef = useRef<LayerInteraction | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
 
   useEffect(() => {
@@ -312,6 +319,62 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
           : slide
       ),
     }))
+  }
+
+  function updateImageLayer(layerId: string, changes: Partial<ImageOverlay>) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? {
+              ...slide,
+              imageLayers: (slide.imageLayers ?? []).map((layer) =>
+                layer.id === layerId ? { ...layer, ...changes } : layer
+              ),
+            }
+          : slide
+      ),
+    }))
+  }
+
+  function addImageOverlay(image: {
+    name: string
+    dataUrl: string
+    rect: LayerRect
+  }) {
+    const layer: ImageOverlay = {
+      id: crypto.randomUUID(),
+      name: image.name,
+      dataUrl: image.dataUrl,
+      rect: image.rect,
+      locked: false,
+    }
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? { ...slide, imageLayers: [...(slide.imageLayers ?? []), layer] }
+          : slide
+      ),
+    }))
+    setSelectedImageLayerId(layer.id)
+  }
+
+  function removeImageOverlay(layerId: string) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? {
+              ...slide,
+              imageLayers: (slide.imageLayers ?? []).filter(
+                (layer) => layer.id !== layerId
+              ),
+            }
+          : slide
+      ),
+    }))
+    setSelectedImageLayerId(null)
   }
 
   function updateSelectedLayerStyle(changes: Partial<TextLayer["style"]>) {
@@ -471,6 +534,71 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
     layerInteractionRef.current = null
+  }
+
+  function startImageLayerInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    layer: ImageOverlay,
+    mode: LayerInteraction["mode"]
+  ) {
+    if (layer.locked) return
+    if (event.pointerType === "mouse" && event.button !== 0) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setSelectedImageLayerId(layer.id)
+    setSelectedLayerId(null)
+    imageLayerInteractionRef.current = {
+      layerId: layer.id,
+      mode,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRect: structuredClone(layer.rect),
+      moved: false,
+    }
+  }
+
+  function moveImageLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = imageLayerInteractionRef.current
+    const canvas = slideCanvasRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId || !canvas) {
+      return
+    }
+
+    const canvasRect = canvas.getBoundingClientRect()
+    const deltaX =
+      ((event.clientX - interaction.startX) / canvasRect.width) * 100
+    const deltaY =
+      ((event.clientY - interaction.startY) / canvasRect.height) * 100
+    interaction.moved ||= Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5
+
+    const start = interaction.startRect
+    const rect =
+      interaction.mode === "drag"
+        ? {
+            ...start,
+            x: clamp(start.x + deltaX, 0, 100 - start.width),
+            y: clamp(start.y + deltaY, 0, 100 - start.height),
+          }
+        : {
+            ...start,
+            width: clamp(start.width + deltaX, 8, 100 - start.x),
+            height: clamp(start.height + deltaY, 8, 100 - start.y),
+          }
+
+    updateImageLayer(interaction.layerId, { rect })
+  }
+
+  function finishImageLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = imageLayerInteractionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    imageLayerInteractionRef.current = null
   }
 
   function startInlineEditing(layer: TextLayer) {
@@ -711,13 +839,11 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     reader.readAsDataURL(file)
   }
 
-  function applyContentImage(image: ProductContentImage) {
-    updateActiveSlide({
-      image: {
-        id: crypto.randomUUID(),
-        name: image.name,
-        dataUrl: image.dataUrl,
-      },
+  function addContentImageOverlay(image: ProductContentImage) {
+    addImageOverlay({
+      name: image.name,
+      dataUrl: image.dataUrl,
+      rect: { x: 35, y: 40, width: 30, height: 20 },
     })
     setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
   }
@@ -1062,6 +1188,44 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                 background: activeTheme.background,
                 containerType: "inline-size",
               }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const payload = event.dataTransfer.getData("application/json")
+                if (!payload) return
+
+                let image: { name?: unknown; dataUrl?: unknown }
+                try {
+                  image = JSON.parse(payload)
+                } catch {
+                  return
+                }
+                if (
+                  typeof image.name !== "string" ||
+                  typeof image.dataUrl !== "string"
+                ) {
+                  return
+                }
+
+                const canvasRect = event.currentTarget.getBoundingClientRect()
+                const centerX =
+                  ((event.clientX - canvasRect.left) / canvasRect.width) * 100
+                const centerY =
+                  ((event.clientY - canvasRect.top) / canvasRect.height) * 100
+                const width = 30
+                const height = 20
+
+                addImageOverlay({
+                  name: image.name,
+                  dataUrl: image.dataUrl,
+                  rect: {
+                    x: clamp(centerX - width / 2, 0, 100 - width),
+                    y: clamp(centerY - height / 2, 0, 100 - height),
+                    width,
+                    height,
+                  },
+                })
+              }}
             >
               {activeSlide.image && (
                 <div
@@ -1169,6 +1333,72 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                           cancelLayerInteraction(event)
                         }}
                       />
+                    )}
+                  </div>
+                )
+              })}
+              {(activeSlide.imageLayers ?? []).map((layer) => {
+                const isSelected = selectedImageLayerId === layer.id
+                return (
+                  <div
+                    key={layer.id}
+                    className={cn(
+                      "group absolute z-20 touch-none",
+                      layer.locked ? "cursor-default" : "cursor-move",
+                      isSelected &&
+                        "outline-2 outline-offset-2 outline-[#4758c7]"
+                    )}
+                    style={{
+                      left: `${layer.rect.x}%`,
+                      top: `${layer.rect.y}%`,
+                      width: `${layer.rect.width}%`,
+                      height: `${layer.rect.height}%`,
+                    }}
+                    onPointerDown={(event) =>
+                      startImageLayerInteraction(event, layer, "drag")
+                    }
+                    onPointerMove={moveImageLayerInteraction}
+                    onPointerUp={finishImageLayerInteraction}
+                    onPointerCancel={finishImageLayerInteraction}
+                  >
+                    <div
+                      className="size-full bg-contain bg-center bg-no-repeat"
+                      style={{
+                        backgroundImage: `url(${JSON.stringify(layer.dataUrl)})`,
+                      }}
+                    />
+                    {isSelected && !layer.locked && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${layer.name}`}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => removeImageOverlay(layer.id)}
+                          className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border-2 border-white bg-red-600 text-white shadow-sm"
+                        >
+                          <X className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Resize ${layer.name}`}
+                          className="absolute -right-2 -bottom-2 size-4 cursor-nwse-resize rounded-full border-2 border-[#4758c7] bg-white shadow-sm"
+                          onPointerDown={(event) =>
+                            startImageLayerInteraction(event, layer, "resize")
+                          }
+                          onPointerMove={(event) => {
+                            event.stopPropagation()
+                            moveImageLayerInteraction(event)
+                          }}
+                          onPointerUp={(event) => {
+                            event.stopPropagation()
+                            finishImageLayerInteraction(event)
+                          }}
+                          onPointerCancel={(event) => {
+                            event.stopPropagation()
+                            finishImageLayerInteraction(event)
+                          }}
+                        />
+                      </>
                     )}
                   </div>
                 )
@@ -1560,9 +1790,21 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                         <div key={image.id} className="group relative">
                           <button
                             type="button"
-                            aria-label={`Use ${image.name}`}
-                            onClick={() => applyContentImage(image)}
-                            className="aspect-square w-full overflow-hidden rounded-lg bg-cover bg-center ring-1 ring-black/10 transition hover:ring-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+                            draggable
+                            aria-label={`Drag ${image.name} onto the canvas`}
+                            title="Drag onto the canvas, or click to add"
+                            onDragStart={(event) => {
+                              event.dataTransfer.setData(
+                                "application/json",
+                                JSON.stringify({
+                                  name: image.name,
+                                  dataUrl: image.dataUrl,
+                                })
+                              )
+                              event.dataTransfer.effectAllowed = "copy"
+                            }}
+                            onClick={() => addContentImageOverlay(image)}
+                            className="aspect-square w-full cursor-grab overflow-hidden rounded-lg bg-cover bg-center ring-1 ring-black/10 transition hover:ring-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7] active:cursor-grabbing"
                             style={{
                               backgroundImage: `url(${JSON.stringify(image.dataUrl)})`,
                             }}
@@ -1811,6 +2053,19 @@ export function SlideExportCard({
             </div>
           )
       )}
+      {(slide.imageLayers ?? []).map((layer) => (
+        <div
+          key={layer.id}
+          className="absolute z-20 bg-contain bg-center bg-no-repeat"
+          style={{
+            left: `${layer.rect.x}%`,
+            top: `${layer.rect.y}%`,
+            width: `${layer.rect.width}%`,
+            height: `${layer.rect.height}%`,
+            backgroundImage: `url(${JSON.stringify(layer.dataUrl)})`,
+          }}
+        />
+      ))}
     </div>
   )
 }

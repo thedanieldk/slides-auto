@@ -89,6 +89,15 @@ export type TextLayer = {
   locked: boolean
 }
 
+/** A small image placed on top of the slide, positioned independently of the background. */
+export type ImageOverlay = {
+  id: string
+  name: string
+  dataUrl: string
+  rect: LayerRect
+  locked: boolean
+}
+
 export type SlideshowSlide = {
   id: string
   layoutId: SlideLayoutId
@@ -96,6 +105,7 @@ export type SlideshowSlide = {
   /** Suggested search phrase for a future image-source integration. */
   imageQuery: string | null
   textLayers: TextLayer[]
+  imageLayers: ImageOverlay[]
 }
 
 export type SlideshowProject = {
@@ -148,9 +158,13 @@ type LegacyProject = {
   updatedAt: string
 }
 
-type StoredSlideV2 = Omit<SlideshowSlide, "layoutId" | "imageQuery"> & {
+type StoredSlideV2 = Omit<
+  SlideshowSlide,
+  "layoutId" | "imageQuery" | "imageLayers"
+> & {
   layoutId?: SlideLayoutId
   imageQuery?: string | null
+  imageLayers?: ImageOverlay[]
 }
 
 type StoredProjectV2 = Omit<SlideshowProject, "slides"> & {
@@ -514,6 +528,7 @@ function createStarterSlide(
     image: null,
     imageQuery: null,
     textLayers: createTextLayers(id, headline, body),
+    imageLayers: [],
   }
 }
 
@@ -562,6 +577,7 @@ export function createSlide(
       "Add one clear thought for this frame.",
       layoutId
     ),
+    imageLayers: [],
   }
 }
 
@@ -628,6 +644,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
           ...slide,
           layoutId: slide.layoutId ?? "clean-white",
           imageQuery: slide.imageQuery ?? null,
+          imageLayers: slide.imageLayers ?? [],
         }
 
         return normalizedSlide.layoutId === "label-body"
@@ -648,6 +665,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
       image: slide.image,
       imageQuery: null,
       textLayers: createTextLayers(slide.id, slide.headline, slide.body),
+      imageLayers: [],
     })),
     updatedAt: new Date().toISOString(),
   }
