@@ -70,6 +70,7 @@ import {
 import type { ProductContentImage } from "@/lib/products/product-profile"
 import {
   applySlideLayout,
+  createCustomTextLayer,
   createSlide,
   getTextLayer,
   getTextShadow,
@@ -168,6 +169,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
   const imageLayerInteractionRef = useRef<LayerInteraction | null>(null)
+  const copiedLayerRef = useRef<TextLayer | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
 
   useEffect(() => {
@@ -388,6 +390,24 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     updateTextLayer(layer.id, { visible: !layer.visible })
   }
 
+  function addTextLayer(layer: TextLayer) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? { ...slide, textLayers: [...slide.textLayers, layer] }
+          : slide
+      ),
+    }))
+    setSelectedLayerId(layer.id)
+  }
+
+  function addTextBox() {
+    const layer = createCustomTextLayer()
+    addTextLayer(layer)
+    setEditingLayerId(layer.id)
+  }
+
   function handleNavDelete() {
     if (!navDeleteTarget) return
     if (navDeleteTarget.kind === "image") {
@@ -421,6 +441,45 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     // state through setProject's updater, so omitting it here is safe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLayer])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isCopy = (event.metaKey || event.ctrlKey) && event.key === "c"
+      const isPaste = (event.metaKey || event.ctrlKey) && event.key === "v"
+      if (!isCopy && !isPaste) return
+      if (editingLayerId) return
+
+      const active = document.activeElement
+      const isEditingText =
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        (active instanceof HTMLElement && active.isContentEditable)
+      if (isEditingText) return
+
+      if (isCopy) {
+        if (!explicitlySelectedLayer) return
+        copiedLayerRef.current = structuredClone(explicitlySelectedLayer)
+        setNotice(`Copied "${explicitlySelectedLayer.name}".`)
+      } else if (copiedLayerRef.current) {
+        const source = copiedLayerRef.current
+        addTextLayer({
+          ...structuredClone(source),
+          id: crypto.randomUUID(),
+          rect: {
+            ...source.rect,
+            x: clamp(source.rect.x + 3, 0, 100 - source.rect.width),
+            y: clamp(source.rect.y + 3, 0, 100 - source.rect.height),
+          },
+        })
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+    // addTextLayer only wraps updateProject, which reads current state
+    // through setProject's updater, so omitting it here is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingLayerId, explicitlySelectedLayer])
 
   function selectBackgroundMode(mode: "none" | "line" | "block") {
     if (!selectedLayer) return
@@ -1438,6 +1497,18 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                   ? "Rewriting…"
                   : "Rewrite this slide"}
               </Button>
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={addTextBox}
+              >
+                <Plus data-icon="inline-start" />
+                Add text box
+              </Button>
+              <p className="mt-2 text-[10px] leading-relaxed text-black/40">
+                Select a text box and press Cmd/Ctrl+C, then Cmd/Ctrl+V to copy
+                it, even onto another slide.
+              </p>
             </div>
 
             <fieldset className="mb-6">

@@ -505,6 +505,20 @@ function createTextLayer(
   }
 }
 
+export function createCustomTextLayer(): TextLayer {
+  return {
+    id: makeId(),
+    type: "text",
+    role: "custom",
+    name: "Custom",
+    text: "New text",
+    rect: { x: 15, y: 75, width: 70, height: 12 },
+    style: structuredClone(bodyStyle),
+    visible: true,
+    locked: false,
+  }
+}
+
 function createTextLayers(
   slideId: string,
   headline: string,
