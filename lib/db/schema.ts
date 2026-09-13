@@ -10,6 +10,7 @@ export const productProfiles = pgTable("product_profiles", {
   name: text("name").notNull(),
   niche: text("niche").notNull(),
   valueProposition: text("value_proposition").notNull(),
+  imageQueries: jsonb("image_queries").$type<string[]>(),
   sourceUrl: text("source_url").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

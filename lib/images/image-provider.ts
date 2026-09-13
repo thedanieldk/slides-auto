@@ -27,3 +27,28 @@ export type ImageSearchResult = z.infer<typeof imageSearchResultSchema>
 export type ImageProvider = {
   search(query: string, limit?: number): Promise<ImageSearchResult[]>
 }
+
+/**
+ * Assigns each of `count` slots a query from `pool`, shuffled once so
+ * consecutive slots get different phrases (wrapping around if there are
+ * more slots than pool entries) instead of picking with replacement.
+ */
+export function pickImageQueries(
+  pool: string[] | null | undefined,
+  count: number
+): string[] {
+  if (!pool || pool.length === 0) {
+    return Array.from({ length: count }, () => DEFAULT_IMAGE_QUERY)
+  }
+
+  const shuffled = [...pool]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
+  }
+
+  return Array.from(
+    { length: count },
+    (_, index) => shuffled[index % shuffled.length]!
+  )
+}

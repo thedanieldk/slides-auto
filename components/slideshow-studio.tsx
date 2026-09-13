@@ -637,11 +637,13 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   }
 
   async function autoFillMissingImages() {
-    const query = getSlideImageQuery()
-    const targets = project.slides.filter((slide) => !slide.image)
+    const targets = project.slides.flatMap((slide) => {
+      const query = slide.imageQuery?.trim() || DEFAULT_IMAGE_QUERY
+      return !slide.image ? [{ slide, query }] : []
+    })
 
-    if (targets.length === 0 || query.length < 2) {
-      setNotice("Every slide already has an image or needs an image query.")
+    if (targets.length === 0) {
+      setNotice("Every slide already has an image.")
       return
     }
 
@@ -654,24 +656,49 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
         )
       )
 
-      // All slides currently share one generic query, so one search sized
-      // to the number of missing slides (plus a small buffer for
-      // duplicates) covers every target instead of searching per slide.
-      const results = await searchImages(
-        query,
-        Math.min(targets.length + 3, 20)
+      // Slides commonly share a query (from the same product's image-query
+      // pool), so group by distinct query and search once per group instead
+      // of once per slide.
+      const groups = new Map<string, SlideshowSlide[]>()
+      for (const { slide, query } of targets) {
+        const group = groups.get(query)
+        if (group) {
+          group.push(slide)
+        } else {
+          groups.set(query, [slide])
+        }
+      }
+
+      const searches = await Promise.allSettled(
+        Array.from(groups.entries()).map(async ([query, slides]) => ({
+          slides,
+          results: await searchImages(query, Math.min(slides.length + 3, 20)),
+        }))
       )
+
       const selectedImages = new Map<string, SlideImage>()
+      let failedCount = 0
 
-      for (const slide of targets) {
-        const result = results.find(
-          (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
-        )
-        if (!result) continue
+      for (const search of searches) {
+        if (search.status === "rejected") {
+          failedCount += 1
+          continue
+        }
 
-        const image = toSlideImage(result)
-        usedImageIds.add(image.id)
-        selectedImages.set(slide.id, image)
+        const { slides, results } = search.value
+        for (const slide of slides) {
+          const result = results.find(
+            (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
+          )
+          if (!result) {
+            failedCount += 1
+            continue
+          }
+
+          const image = toSlideImage(result)
+          usedImageIds.add(image.id)
+          selectedImages.set(slide.id, image)
+        }
       }
 
       if (selectedImages.size > 0) {
@@ -684,11 +711,10 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
         }))
       }
 
-      const unmatched = targets.length - selectedImages.size
       setNotice(
         selectedImages.size === 0
-          ? "No matching photos were found. Try changing a slide image query."
-          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${unmatched ? `; ${unmatched} could not be matched` : ""}.`
+          ? "No matching photos were found. Try again."
+          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${failedCount ? `; ${failedCount} could not be matched` : ""}.`
       )
     } catch (searchError) {
       setNotice(
@@ -1541,10 +1567,6 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       />
     </main>
   )
-}
-
-function getSlideImageQuery() {
-  return DEFAULT_IMAGE_QUERY
 }
 
 function getAppliedTextStyle(slides: SlideshowSlide[]): TextStyleId | null {

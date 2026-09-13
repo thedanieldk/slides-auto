@@ -10,6 +10,7 @@ export const productProfileSchema = productProfileDraftSchema.extend({
   id: z.string().min(1),
   sourceUrl: z.string().url(),
   createdAt: z.string().datetime(),
+  imageQueries: z.array(z.string()).nullable(),
 })
 
 export const productProfileAnalysisSchema = productProfileDraftSchema.extend({
