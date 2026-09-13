@@ -35,7 +35,7 @@ export function ImageSearchDialog({
     setIsSearching(true)
     setError(null)
     try {
-      setResults(await searchImages(cleanQuery))
+      setResults(await searchImages(cleanQuery, 6))
     } catch (searchError) {
       setResults([])
       setError(
