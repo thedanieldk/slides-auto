@@ -57,6 +57,13 @@
       "when": 1789291991359,
       "tag": "0007_glossy_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789343001843,
+      "tag": "0008_workable_skullbuster",
+      "breakpoints": true
     }
   ]
 }

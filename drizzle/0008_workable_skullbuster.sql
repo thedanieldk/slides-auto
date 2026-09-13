@@ -1,0 +1,1 @@
+ALTER TABLE "slideshows" ADD COLUMN "posted" boolean DEFAULT false NOT NULL;

@@ -21,6 +21,7 @@ function toProject(row: typeof slideshows.$inferSelect): SlideshowProject {
     activeSlideId: row.activeSlideId,
     slides: row.slides,
     productId: row.productId,
+    posted: row.posted,
     updatedAt: row.updatedAt.toISOString(),
   }
 }
@@ -62,6 +63,7 @@ export async function saveProject(project: SlideshowProject): Promise<void> {
       activeSlideId: project.activeSlideId,
       slides: project.slides,
       productId: project.productId,
+      posted: project.posted,
     })
     .onConflictDoUpdate({
       target: slideshows.id,
@@ -71,6 +73,7 @@ export async function saveProject(project: SlideshowProject): Promise<void> {
         activeSlideId: project.activeSlideId,
         slides: project.slides,
         productId: project.productId,
+        posted: project.posted,
         updatedAt: new Date(),
       },
     })
@@ -101,10 +104,22 @@ export async function createProjectFromComposition(
     activeSlideId: result.slides[0]!.id,
     slides: result.slides,
     productId,
+    posted: false,
     updatedAt: new Date().toISOString(),
   }
   await saveProject(project)
   return project
+}
+
+export async function setProjectPosted(
+  id: string,
+  posted: boolean
+): Promise<void> {
+  const userId = await getCurrentUserId()
+  await db
+    .update(slideshows)
+    .set({ posted })
+    .where(and(eq(slideshows.id, id), eq(slideshows.userId, userId)))
 }
 
 /**

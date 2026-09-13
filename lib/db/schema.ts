@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm"
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core"
 
 import type { CompositionResult } from "@/lib/composition"
 import type { ProductContentImage } from "@/lib/products/product-profile"
@@ -45,6 +52,7 @@ export const slideshows = pgTable("slideshows", {
   productId: uuid("product_id").references(() => productProfiles.id, {
     onDelete: "set null",
   }),
+  posted: boolean("posted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

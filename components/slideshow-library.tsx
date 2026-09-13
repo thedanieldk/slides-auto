@@ -2,6 +2,8 @@
 
 import { UserButton } from "@clerk/nextjs"
 import {
+  CheckCircle2,
+  Circle,
   LayoutGrid,
   LoaderCircle,
   PenLine,
@@ -34,6 +36,7 @@ import {
   createProjectFromComposition,
   deleteProject,
   listProjects,
+  setProjectPosted,
 } from "@/lib/actions/slideshows"
 import { listProductProfiles } from "@/lib/actions/products"
 import type { ProductProfile } from "@/lib/products/product-profile"
@@ -201,6 +204,20 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
     await deleteProject(project.id)
   }
 
+  async function togglePosted(
+    event: React.MouseEvent,
+    project: SlideshowProject
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const posted = !project.posted
+    setProjects((current) =>
+      current.map((p) => (p.id === project.id ? { ...p, posted } : p))
+    )
+    await setProjectPosted(project.id, posted)
+  }
+
   return (
     <div className="flex min-h-svh bg-[#e9e7e2] text-[#1b1c24]">
       <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-black/10 bg-[#f4f3ef] px-3 py-6">
@@ -282,10 +299,39 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
                     href={`/slideshow/${project.id}`}
                     className="group relative block"
                   >
-                    <div className="relative aspect-[9/16] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40">
+                    <div
+                      className={cn(
+                        "relative aspect-[9/16] overflow-hidden rounded-2xl border bg-white shadow-[0_8px_24px_rgba(42,43,55,.09)] transition group-hover:border-[#4758c7]/40",
+                        project.posted
+                          ? "border-emerald-400"
+                          : "border-black/10"
+                      )}
+                    >
                       {coverSlide && (
                         <SlideExportCard slide={coverSlide} theme={theme} />
                       )}
+                      <button
+                        type="button"
+                        aria-label={
+                          project.posted
+                            ? `Mark ${project.title} as not posted`
+                            : `Mark ${project.title} as posted`
+                        }
+                        title={project.posted ? "Posted" : "Mark as posted"}
+                        onClick={(event) => void togglePosted(event, project)}
+                        className={cn(
+                          "absolute top-2 left-2 z-10 grid size-7 place-items-center rounded-full backdrop-blur-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+                          project.posted
+                            ? "bg-emerald-500 text-white"
+                            : "bg-black/40 text-white hover:bg-black/60"
+                        )}
+                      >
+                        {project.posted ? (
+                          <CheckCircle2 className="size-4" />
+                        ) : (
+                          <Circle className="size-4" />
+                        )}
+                      </button>
                       <button
                         type="button"
                         aria-label={`Delete ${project.title}`}

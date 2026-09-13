@@ -116,6 +116,7 @@ export type SlideshowProject = {
   activeSlideId: string
   slides: SlideshowSlide[]
   productId: string | null
+  posted: boolean
   updatedAt: string
 }
 
@@ -572,6 +573,7 @@ export const starterProject: SlideshowProject = {
   activeSlideId: starterSlides[0]!.id,
   slides: starterSlides,
   productId: null,
+  posted: false,
   updatedAt: "2026-09-08T00:00:00.000Z",
 }
 
@@ -606,6 +608,7 @@ export function createProject(): SlideshowProject {
     activeSlideId: firstSlide.id,
     slides: [firstSlide],
     productId: null,
+    posted: false,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -673,6 +676,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
     ...value,
     version: 2,
     productId: null,
+    posted: false,
     slides: value.slides.map((slide) => ({
       id: slide.id,
       layoutId: "clean-white",
