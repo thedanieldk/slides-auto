@@ -17,20 +17,22 @@ const productImageQueriesJsonSchema = {
     imageQueries: {
       type: "array",
       items: { type: "string" },
-      description: `Exactly ${IMAGE_QUERY_COUNT} short Pinterest search phrases (2-5 words each) for aesthetic background photos related to the niche.`,
+      description: `Exactly ${IMAGE_QUERY_COUNT} short Pinterest search phrases (3-6 words each) that all share one consistent candid, warm photo style, varying only the subject.`,
     },
   },
   required: ["imageQueries"],
   additionalProperties: false,
 } as const
 
-const IMAGE_QUERIES_SYSTEM_PROMPT = `You write short Pinterest search phrases for aesthetic background photos to accompany social content about a product.
+const IMAGE_QUERIES_SYSTEM_PROMPT = `You write short Pinterest search phrases for candid, personal-style aesthetic photos to accompany social content about a product — the kind of photo diary feed where every slide feels like it belongs to the same set.
 
-Given a product's name, niche, and value proposition, return ${IMAGE_QUERY_COUNT} distinct short search phrases (2 to 5 words each). Each phrase should evoke the general lifestyle, mood, or setting related to the niche — broad and aesthetic, never the literal specific product or topic.
+Given a product's name, niche, and value proposition, return exactly ${IMAGE_QUERY_COUNT} distinct search phrases (3 to 6 words each). All ${IMAGE_QUERY_COUNT} phrases must share the same visual treatment: candid, personal, iPhone-photo style with natural, warm, soft lighting. Vary ONLY the subject or setting between phrases (a different room, activity, or object related to the niche) — never the mood, lighting, color palette, or overall vibe. The phrases should read like they would return photos from the same photo diary, not different aesthetics.
 
-For example, for a sleep aid product, prefer phrases like "cozy bedroom aesthetic" or "calm night routine" rather than "sleep aid" or anything mentioning sleep directly.
+Each phrase should evoke the general lifestyle or setting related to the niche — broad and aesthetic, never the literal specific product or topic. Include a word like "candid" or "aesthetic" in most phrases to bias toward real personal photography instead of staged, professional, or real-estate-style stock photos.
 
-Vary the phrases so they cover different angles: mood, room or setting, activity, and color palette or atmosphere.`
+Good example set for a sleep aid product (consistent candid/warm style, varied subject): "candid bedroom morning light", "cozy blanket candid aesthetic", "candid nightstand still life", "morning stretch candid photo", "candid cup of tea aesthetic", "soft candid pillow details".
+
+Bad example (do not do this): mixing "dramatic sunset skylight bedroom" with "ocean waves aesthetic" — these have completely different moods, lighting, and settings and would look mismatched next to each other.`
 
 export async function generateProductImageQueries(product: {
   name: string
