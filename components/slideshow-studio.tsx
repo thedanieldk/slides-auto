@@ -669,19 +669,30 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
         }
       }
 
-      const searches = await Promise.allSettled(
-        Array.from(groups.entries()).map(async ([query, slides]) => ({
+      // Run at most 2 Pinterest searches at once. Slides now often have
+      // distinct queries (one per product's image-query pool), and firing
+      // every group's search in parallel can exceed Apify's concurrent-run
+      // limit, causing some to fail outright.
+      const groupEntries = Array.from(groups.entries())
+      const searches = await runWithConcurrencyLimit(
+        groupEntries,
+        2,
+        async ([query, slides]) => ({
           slides,
           results: await searchImages(query, Math.min(slides.length + 3, 20)),
-        }))
+        })
       )
 
       const selectedImages = new Map<string, SlideImage>()
       let failedCount = 0
 
-      for (const search of searches) {
+      for (const [index, search] of searches.entries()) {
         if (search.status === "rejected") {
-          failedCount += 1
+          console.error(
+            "Pinterest search failed during auto-fill:",
+            search.reason
+          )
+          failedCount += groupEntries[index]![1].length
           continue
         }
 
@@ -1582,6 +1593,35 @@ function getAppliedTextStyle(slides: SlideshowSlide[]): TextStyleId | null {
       slides.every((slide) => slide.layoutId === textStyle.id)
     )?.id ?? null
   )
+}
+
+async function runWithConcurrencyLimit<T, R>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length)
+  let nextIndex = 0
+
+  async function worker() {
+    for (;;) {
+      const index = nextIndex++
+      if (index >= items.length) return
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: await task(items[index]!),
+        }
+      } catch (reason) {
+        results[index] = { status: "rejected", reason }
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  )
+  return results
 }
 
 function toSlideImage(result: ImageSearchResult): SlideImage {
