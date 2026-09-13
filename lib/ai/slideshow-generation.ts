@@ -37,12 +37,13 @@ export const generatedSlideSchema = z
     hook: z.string().trim().min(1),
     body: z.string().trim(),
     layoutId: z.enum(slideLayoutIds),
+    imageQuery: z.string().trim().min(2).max(80).optional(),
   })
   .transform((slide) => ({
     ...slide,
     hook: limitText(slide.hook, 120),
     body: limitText(slide.body, 180),
-    imageQuery: DEFAULT_IMAGE_QUERY,
+    imageQuery: slide.imageQuery || DEFAULT_IMAGE_QUERY,
   }))
 
 export const generatedSlideshowSchema = z
@@ -139,6 +140,12 @@ const slideProperties = {
   },
 } as const
 
+const slideImageQueryProperty = {
+  type: "string",
+  description:
+    "A short Pinterest search phrase (3-6 words) for this slide's background photo. Candid, personal, iPhone-photo style with natural warm lighting - never a staged, professional, or real-estate-style shot. Broad and aesthetic, never the literal specific product or topic. Every slide in this slideshow must share the exact same visual treatment (same mood, lighting, and color palette) and vary only the subject or setting.",
+} as const
+
 const conceptProperties = {
   hook: {
     type: "string",
@@ -187,8 +194,8 @@ export function createSlideshowOutputJsonSchema(slideCount: number) {
   )
   const slideSchema = {
     type: "object",
-    properties: slideProperties,
-    required: ["hook", "body", "layoutId"],
+    properties: { ...slideProperties, imageQuery: slideImageQueryProperty },
+    required: ["hook", "body", "layoutId", "imageQuery"],
     additionalProperties: false,
   } as const
 

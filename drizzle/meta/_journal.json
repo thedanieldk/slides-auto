@@ -43,6 +43,13 @@
       "when": 1789264464499,
       "tag": "0005_milky_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789281171924,
+      "tag": "0006_reflective_vampiro",
+      "breakpoints": true
     }
   ]
 }

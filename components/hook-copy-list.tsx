@@ -11,7 +11,6 @@ import {
 import { generatedSlideshowSchema } from "@/lib/ai/slideshow-generation"
 import type { HookFramework } from "@/lib/ai/frameworks"
 import type { SavedHook } from "@/lib/hooks-storage"
-import { pickImageQueries } from "@/lib/images/image-provider"
 import {
   getTextLayer,
   resolveCarouselTextStyle,
@@ -64,17 +63,11 @@ export async function requestHookCopy({
     throw new Error("The generated slideshow was incomplete. Try again.")
   }
 
-  const imageQueries = pickImageQueries(
-    product.imageQueries,
-    generated.data.slides.length
-  )
-
   return composeGeneratedSlideshow({
     ...generated.data,
     slides: generated.data.slides.map((slide, index) => ({
       ...slide,
       layoutId: resolveCarouselTextStyle(layoutId, index),
-      imageQuery: imageQueries[index],
     })),
   })
 }

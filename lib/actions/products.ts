@@ -2,7 +2,6 @@
 
 import { and, desc, eq } from "drizzle-orm"
 
-import { generateProductImageQueries } from "@/lib/ai/image-queries"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { db } from "@/lib/db"
 import { productProfiles } from "@/lib/db/schema"
@@ -18,7 +17,6 @@ function toProductProfile(
     valueProposition: row.valueProposition,
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt.toISOString(),
-    imageQueries: row.imageQueries ?? null,
   }
 }
 
@@ -52,8 +50,6 @@ export async function upsertProductProfile(draft: {
     )
     .limit(1)
 
-  const imageQueries = await generateProductImageQueries(draft)
-
   if (existing) {
     const [updated] = await db
       .update(productProfiles)
@@ -61,7 +57,6 @@ export async function upsertProductProfile(draft: {
         name: draft.name,
         niche: draft.niche,
         valueProposition: draft.valueProposition,
-        imageQueries,
       })
       .where(eq(productProfiles.id, existing.id))
       .returning()
@@ -70,7 +65,7 @@ export async function upsertProductProfile(draft: {
 
   const [created] = await db
     .insert(productProfiles)
-    .values({ ...draft, userId, imageQueries })
+    .values({ ...draft, userId })
     .returning()
   return toProductProfile(created!)
 }
