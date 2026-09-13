@@ -49,6 +49,11 @@ import {
 import { cn } from "@/lib/utils"
 import { ImageSearchDialog } from "@/components/image-search-dialog"
 import { applyGeneratedCopy } from "@/lib/composition"
+import {
+  parseRichText,
+  richTextToHtml,
+  serializeEditableNode,
+} from "@/lib/rich-text"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
 import { searchImages } from "@/lib/images/search-images"
 import {
@@ -1103,12 +1108,14 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                         onBlur={(event) =>
                           finishInlineEditing(
                             layer,
-                            event.currentTarget.innerText
+                            serializeEditableNode(event.currentTarget)
                           )
                         }
                         onKeyDown={(event) => {
                           if (event.key === "Escape") {
-                            event.currentTarget.innerText = layer.text
+                            event.currentTarget.innerHTML = richTextToHtml(
+                              layer.text
+                            )
                             setEditingLayerId(null)
                             event.currentTarget.blur()
                           }
@@ -1121,7 +1128,11 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                           }
                         }}
                       >
-                        {layer.text || `Add ${layer.name.toLowerCase()} text`}
+                        {layer.text ? (
+                          <RichText value={layer.text} />
+                        ) : (
+                          `Add ${layer.name.toLowerCase()} text`
+                        )}
                       </span>
                     </div>
 
@@ -1628,6 +1639,20 @@ async function runWithConcurrencyLimit<T, R>(
   return results
 }
 
+function RichText({ value }: { value: string }) {
+  return (
+    <>
+      {parseRichText(value).map((segment, index) =>
+        segment.bold ? (
+          <strong key={index}>{segment.text}</strong>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        )
+      )}
+    </>
+  )
+}
+
 function toSlideImage(result: ImageSearchResult): SlideImage {
   return {
     id: `pinterest-${result.id}`,
@@ -1745,7 +1770,9 @@ export function SlideExportCard({
               className="absolute z-10 overflow-hidden text-pretty"
               style={getTextLayerStyle(layer, theme)}
             >
-              <span style={getTextLayerContentStyle(layer)}>{layer.text}</span>
+              <span style={getTextLayerContentStyle(layer)}>
+                <RichText value={layer.text} />
+              </span>
             </div>
           )
       )}
