@@ -57,11 +57,7 @@ import {
 } from "@/lib/rich-text"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
 import { autoFillSlideImages } from "@/lib/images/auto-fill"
-import {
-  createBlankProject,
-  loadProject,
-  saveProject,
-} from "@/lib/actions/slideshows"
+import { createBlankProject, saveProject } from "@/lib/actions/slideshows"
 import {
   addProductContentImage,
   getProductProfile,
@@ -142,10 +138,13 @@ function cloneStarterProject() {
   return structuredClone(starterProject)
 }
 
-export function SlideshowStudio({ projectId }: { projectId: string }) {
+export function SlideshowStudio({
+  initialProject,
+}: {
+  initialProject: SlideshowProject
+}) {
   const router = useRouter()
-  const [project, setProject] = useState<SlideshowProject>(cloneStarterProject)
-  const [hasLoaded, setHasLoaded] = useState(false)
+  const [project, setProject] = useState<SlideshowProject>(initialProject)
   const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">(
     "saved"
   )
@@ -171,23 +170,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   const imageLayerInteractionRef = useRef<LayerInteraction | null>(null)
   const copiedLayerRef = useRef<TextLayer | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    void loadProject(projectId).then((loadedProject) => {
-      if (cancelled) return
-      if (loadedProject) {
-        setProject(loadedProject)
-        setHasLoaded(true)
-      } else {
-        router.replace("/")
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, router])
+  const isFirstRenderRef = useRef(true)
 
   useEffect(() => {
     let cancelled = false
@@ -207,7 +190,10 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   }, [project.productId])
 
   useEffect(() => {
-    if (!hasLoaded) return
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
 
     const timeout = window.setTimeout(() => {
       void saveProject(project)
@@ -220,7 +206,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     }, 800)
 
     return () => window.clearTimeout(timeout)
-  }, [hasLoaded, project])
+  }, [project])
 
   async function saveNow() {
     setSaveState("saving")

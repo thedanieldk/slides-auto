@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
 import { SlideshowStudio } from "@/components/slideshow-studio"
+import { loadProject } from "@/lib/actions/slideshows"
 
 export default async function SlideshowPage({
   params,
@@ -9,5 +11,8 @@ export default async function SlideshowPage({
 }) {
   await auth.protect()
   const { id } = await params
-  return <SlideshowStudio projectId={id} key={id} />
+  const project = await loadProject(id)
+  if (!project) redirect("/")
+
+  return <SlideshowStudio initialProject={project} key={id} />
 }
