@@ -4,6 +4,7 @@ export const DEFAULT_IMAGE_QUERY = "girl aesthetic faceless wellness warm"
 
 export const imageSearchRequestSchema = z.object({
   query: z.string().trim().min(2).max(100),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
 })
 
 export const imageSearchResultSchema = z.object({
@@ -24,5 +25,5 @@ export const imageSearchResponseSchema = z.object({
 export type ImageSearchResult = z.infer<typeof imageSearchResultSchema>
 
 export type ImageProvider = {
-  search(query: string): Promise<ImageSearchResult[]>
+  search(query: string, limit?: number): Promise<ImageSearchResult[]>
 }

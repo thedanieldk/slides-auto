@@ -35,7 +35,7 @@ type PinterestPin = {
 export class PinterestProvider implements ImageProvider {
   constructor(private readonly apiToken: string) {}
 
-  async search(query: string): Promise<ImageSearchResult[]> {
+  async search(query: string, limit = 20): Promise<ImageSearchResult[]> {
     const url = new URL(PINTEREST_ACTOR_URL)
     url.searchParams.set("token", this.apiToken)
 
@@ -45,7 +45,7 @@ export class PinterestProvider implements ImageProvider {
       body: JSON.stringify({
         queries: [query],
         type: "all-pins",
-        limit: 20,
+        limit,
       }),
       signal: AbortSignal.timeout(45_000),
     })

@@ -637,12 +637,10 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   }
 
   async function autoFillMissingImages() {
-    const targets = project.slides.flatMap((slide) => {
-      const query = getSlideImageQuery()
-      return !slide.image && query.length >= 2 ? [{ slide, query }] : []
-    })
+    const query = getSlideImageQuery()
+    const targets = project.slides.filter((slide) => !slide.image)
 
-    if (targets.length === 0) {
+    if (targets.length === 0 || query.length < 2) {
       setNotice("Every slide already has an image or needs an image query.")
       return
     }
@@ -650,38 +648,30 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     setIsAutoFillingImages(true)
     setNotice(null)
     try {
-      const searches = await Promise.allSettled(
-        targets.map(async ({ slide, query }) => ({
-          slideId: slide.id,
-          results: await searchImages(query),
-        }))
-      )
       const usedImageIds = new Set(
         project.slides.flatMap((slide) =>
           slide.image?.id.startsWith("pinterest-") ? [slide.image.id] : []
         )
       )
+
+      // All slides currently share one generic query, so one search sized
+      // to the number of missing slides (plus a small buffer for
+      // duplicates) covers every target instead of searching per slide.
+      const results = await searchImages(
+        query,
+        Math.min(targets.length + 3, 20)
+      )
       const selectedImages = new Map<string, SlideImage>()
-      let failedSearches = 0
 
-      for (const search of searches) {
-        if (search.status === "rejected") {
-          failedSearches += 1
-          continue
-        }
-
-        const result =
-          search.value.results.find(
-            (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
-          ) ?? search.value.results[0]
-        if (!result) {
-          failedSearches += 1
-          continue
-        }
+      for (const slide of targets) {
+        const result = results.find(
+          (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
+        )
+        if (!result) continue
 
         const image = toSlideImage(result)
         usedImageIds.add(image.id)
-        selectedImages.set(search.value.slideId, image)
+        selectedImages.set(slide.id, image)
       }
 
       if (selectedImages.size > 0) {
@@ -694,10 +684,17 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
         }))
       }
 
+      const unmatched = targets.length - selectedImages.size
       setNotice(
         selectedImages.size === 0
           ? "No matching photos were found. Try changing a slide image query."
-          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${failedSearches ? `; ${failedSearches} could not be matched` : ""}.`
+          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${unmatched ? `; ${unmatched} could not be matched` : ""}.`
+      )
+    } catch (searchError) {
+      setNotice(
+        searchError instanceof Error
+          ? searchError.message
+          : "Something went wrong while finding images."
       )
     } finally {
       setIsAutoFillingImages(false)

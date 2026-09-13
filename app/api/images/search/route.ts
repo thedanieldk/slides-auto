@@ -2,8 +2,11 @@ import { imageSearchRequestSchema } from "@/lib/images/image-provider"
 import { PinterestProvider } from "@/lib/images/providers/pinterest"
 
 export async function GET(request: Request) {
-  const query = new URL(request.url).searchParams.get("query")
-  const parsedRequest = imageSearchRequestSchema.safeParse({ query })
+  const searchParams = new URL(request.url).searchParams
+  const parsedRequest = imageSearchRequestSchema.safeParse({
+    query: searchParams.get("query"),
+    limit: searchParams.get("limit") ?? undefined,
+  })
   if (!parsedRequest.success) {
     return Response.json(
       { error: "Enter at least two characters to search for images." },
@@ -21,7 +24,10 @@ export async function GET(request: Request) {
 
   try {
     const provider = new PinterestProvider(apiToken)
-    const results = await provider.search(parsedRequest.data.query)
+    const results = await provider.search(
+      parsedRequest.data.query,
+      parsedRequest.data.limit
+    )
     return Response.json({ data: { results } })
   } catch (error) {
     return Response.json(

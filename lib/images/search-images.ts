@@ -4,11 +4,13 @@ import {
 } from "@/lib/images/image-provider"
 
 export async function searchImages(
-  query: string
+  query: string,
+  limit?: number
 ): Promise<ImageSearchResult[]> {
-  const response = await fetch(
-    `/api/images/search?query=${encodeURIComponent(query.trim())}`
-  )
+  const params = new URLSearchParams({ query: query.trim() })
+  if (limit) params.set("limit", String(limit))
+
+  const response = await fetch(`/api/images/search?${params}`)
   const payload: unknown = await response.json()
   const responseBody = isRecord(payload) ? payload : {}
 
