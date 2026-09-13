@@ -20,6 +20,7 @@ function toProject(row: typeof slideshows.$inferSelect): SlideshowProject {
     themeId: row.themeId as SlideshowProject["themeId"],
     activeSlideId: row.activeSlideId,
     slides: row.slides,
+    productId: row.productId,
     updatedAt: row.updatedAt.toISOString(),
   }
 }
@@ -60,6 +61,7 @@ export async function saveProject(project: SlideshowProject): Promise<void> {
       themeId: project.themeId,
       activeSlideId: project.activeSlideId,
       slides: project.slides,
+      productId: project.productId,
     })
     .onConflictDoUpdate({
       target: slideshows.id,
@@ -68,6 +70,7 @@ export async function saveProject(project: SlideshowProject): Promise<void> {
         themeId: project.themeId,
         activeSlideId: project.activeSlideId,
         slides: project.slides,
+        productId: project.productId,
         updatedAt: new Date(),
       },
     })
@@ -87,7 +90,8 @@ export async function createBlankProject(): Promise<SlideshowProject> {
 }
 
 export async function createProjectFromComposition(
-  result: CompositionResult
+  result: CompositionResult,
+  productId: string | null = null
 ): Promise<SlideshowProject> {
   const project: SlideshowProject = {
     version: 2,
@@ -96,6 +100,7 @@ export async function createProjectFromComposition(
     themeId: "paper",
     activeSlideId: result.slides[0]!.id,
     slides: result.slides,
+    productId,
     updatedAt: new Date().toISOString(),
   }
   await saveProject(project)

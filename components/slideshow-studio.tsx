@@ -66,6 +66,12 @@ import {
   saveProject,
 } from "@/lib/actions/slideshows"
 import {
+  addProductContentImage,
+  getProductProfile,
+  removeProductContentImage,
+} from "@/lib/actions/products"
+import type { ProductContentImage } from "@/lib/products/product-profile"
+import {
   applySlideLayout,
   createSlide,
   getTextLayer,
@@ -153,7 +159,10 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   )
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null)
+  const [contentImages, setContentImages] = useState<ProductContentImage[]>([])
+  const [isUploadingContentImage, setIsUploadingContentImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const contentImageInputRef = useRef<HTMLInputElement>(null)
   const slideCanvasRef = useRef<HTMLDivElement>(null)
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
@@ -175,6 +184,23 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       cancelled = true
     }
   }, [projectId, router])
+
+  useEffect(() => {
+    let cancelled = false
+    const productId = project.productId
+
+    if (!productId) {
+      const timeout = window.setTimeout(() => setContentImages([]), 0)
+      return () => window.clearTimeout(timeout)
+    }
+
+    void getProductProfile(productId).then((product) => {
+      if (!cancelled) setContentImages(product?.contentImages ?? [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [project.productId])
 
   useEffect(() => {
     if (!hasLoaded) return
@@ -658,6 +684,58 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
       setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
     }
     reader.readAsDataURL(file)
+  }
+
+  function handleContentImageUpload(file: File | undefined) {
+    if (!file || !project.productId) return
+    if (!file.type.startsWith("image/")) {
+      setNotice("Choose an image file such as PNG, JPEG, or WebP.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 5 MB.")
+      return
+    }
+
+    const productId = project.productId
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return
+      setIsUploadingContentImage(true)
+      addProductContentImage(productId, {
+        name: file.name,
+        dataUrl: reader.result,
+      })
+        .then((product) => {
+          setContentImages(product.contentImages ?? [])
+          setNotice(`${file.name} added to this product's content images.`)
+        })
+        .catch(() => setNotice("Could not add this image. Try again."))
+        .finally(() => setIsUploadingContentImage(false))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function applyContentImage(image: ProductContentImage) {
+    updateActiveSlide({
+      image: {
+        id: crypto.randomUUID(),
+        name: image.name,
+        dataUrl: image.dataUrl,
+      },
+    })
+    setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
+  }
+
+  function removeContentImage(imageId: string) {
+    if (!project.productId) return
+    const productId = project.productId
+    setContentImages((current) =>
+      current.filter((image) => image.id !== imageId)
+    )
+    void removeProductContentImage(productId, imageId).catch(() => {
+      setNotice("Could not remove that image. Try again.")
+    })
   }
 
   async function autoFillMissingImages() {
@@ -1539,6 +1617,72 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                   {activeSlide.image ? "Upload replacement" : "Upload image"}
                 </Button>
               </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="mb-3 text-xs font-semibold text-black/60">
+                Content
+              </p>
+              {!project.productId ? (
+                <p className="rounded-xl border border-dashed border-black/15 px-3 py-2.5 text-[11px] leading-relaxed text-black/40">
+                  Link a product when composing a slideshow to save reusable
+                  content images here.
+                </p>
+              ) : (
+                <>
+                  <input
+                    ref={contentImageInputRef}
+                    className="sr-only"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={(event) => {
+                      handleContentImageUpload(event.target.files?.[0])
+                      event.target.value = ""
+                    }}
+                  />
+                  {contentImages.length > 0 && (
+                    <div className="mb-2 grid grid-cols-3 gap-2">
+                      {contentImages.map((image) => (
+                        <div key={image.id} className="group relative">
+                          <button
+                            type="button"
+                            aria-label={`Use ${image.name}`}
+                            onClick={() => applyContentImage(image)}
+                            className="aspect-square w-full overflow-hidden rounded-lg bg-cover bg-center ring-1 ring-black/10 transition hover:ring-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+                            style={{
+                              backgroundImage: `url(${JSON.stringify(image.dataUrl)})`,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            aria-label={`Remove ${image.name}`}
+                            onClick={() => removeContentImage(image.id)}
+                            className="absolute top-1 right-1 grid size-5 place-items-center rounded-full bg-black/50 text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={isUploadingContentImage}
+                    onClick={() => contentImageInputRef.current?.click()}
+                  >
+                    {isUploadingContentImage ? (
+                      <LoaderCircle
+                        data-icon="inline-start"
+                        className="animate-spin"
+                      />
+                    ) : (
+                      <ImagePlus data-icon="inline-start" />
+                    )}
+                    Add content image
+                  </Button>
+                </>
+              )}
             </div>
 
             <div className="space-y-4">

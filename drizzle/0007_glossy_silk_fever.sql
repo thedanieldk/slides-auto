@@ -1,0 +1,1 @@
+ALTER TABLE "product_profiles" ADD COLUMN "content_images" jsonb;

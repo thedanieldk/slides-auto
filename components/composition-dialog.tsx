@@ -36,7 +36,7 @@ import type { ProductProfile } from "@/lib/products/product-profile"
 type CompositionDialogProps = {
   open: boolean
   onClose: () => void
-  onApply: (result: CompositionResult) => void
+  onApply: (result: CompositionResult, productId: string | null) => void
 }
 
 type ComposerMode = "ai" | "script"
@@ -501,7 +501,9 @@ export function CompositionDialog({
                     </div>
                     <Button
                       className="mt-4 w-full"
-                      onClick={() => onApply(result)}
+                      onClick={() =>
+                        onApply(result, selectedProduct?.id ?? null)
+                      }
                     >
                       Create slideshow with {result.slides.length} slides
                     </Button>

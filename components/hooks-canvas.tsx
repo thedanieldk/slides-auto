@@ -180,7 +180,10 @@ export function HooksCanvas() {
   }
 
   async function createSlideshow(result: CompositionResult) {
-    const project = await createProjectFromComposition(result)
+    const project = await createProjectFromComposition(
+      result,
+      selectedProduct?.id ?? null
+    )
     router.push(`/slideshow/${project.id}`)
   }
 

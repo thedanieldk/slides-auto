@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm"
 import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
 
 import type { CompositionResult } from "@/lib/composition"
+import type { ProductContentImage } from "@/lib/products/product-profile"
 import type { SlideshowSlide } from "@/lib/slideshow"
 
 export const productProfiles = pgTable("product_profiles", {
@@ -10,6 +11,7 @@ export const productProfiles = pgTable("product_profiles", {
   name: text("name").notNull(),
   niche: text("niche").notNull(),
   valueProposition: text("value_proposition").notNull(),
+  contentImages: jsonb("content_images").$type<ProductContentImage[]>(),
   sourceUrl: text("source_url").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

@@ -6,10 +6,17 @@ export const productProfileDraftSchema = z.object({
   valueProposition: z.string().trim().min(1).max(280),
 })
 
+export const productContentImageSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  dataUrl: z.string().min(1),
+})
+
 export const productProfileSchema = productProfileDraftSchema.extend({
   id: z.string().min(1),
   sourceUrl: z.string().url(),
   createdAt: z.string().datetime(),
+  contentImages: z.array(productContentImageSchema).nullable(),
 })
 
 export const productProfileAnalysisSchema = productProfileDraftSchema.extend({
@@ -24,6 +31,7 @@ export const productProfileRequestSchema = z.object({
 
 export type ProductProfileDraft = z.infer<typeof productProfileDraftSchema>
 export type ProductProfile = z.infer<typeof productProfileSchema>
+export type ProductContentImage = z.infer<typeof productContentImageSchema>
 
 export const productProfileOutputJsonSchema = {
   type: "object",

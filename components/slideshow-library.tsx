@@ -57,8 +57,11 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
     router.push(`/slideshow/${project.id}`)
   }
 
-  async function handleComposed(result: CompositionResult) {
-    const project = await createProjectFromComposition(result)
+  async function handleComposed(
+    result: CompositionResult,
+    productId: string | null
+  ) {
+    const project = await createProjectFromComposition(result, productId)
     setComposerOpen(false)
     router.push(`/slideshow/${project.id}`)
   }

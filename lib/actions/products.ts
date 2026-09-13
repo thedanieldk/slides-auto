@@ -17,6 +17,7 @@ function toProductProfile(
     valueProposition: row.valueProposition,
     sourceUrl: row.sourceUrl,
     createdAt: row.createdAt.toISOString(),
+    contentImages: row.contentImages ?? null,
   }
 }
 
@@ -29,6 +30,19 @@ export async function listProductProfiles(): Promise<ProductProfile[]> {
     .orderBy(desc(productProfiles.createdAt))
 
   return rows.map(toProductProfile)
+}
+
+export async function getProductProfile(
+  id: string
+): Promise<ProductProfile | null> {
+  const userId = await getCurrentUserId()
+  const [row] = await db
+    .select()
+    .from(productProfiles)
+    .where(and(eq(productProfiles.id, id), eq(productProfiles.userId, userId)))
+    .limit(1)
+
+  return row ? toProductProfile(row) : null
 }
 
 export async function upsertProductProfile(draft: {
@@ -75,4 +89,59 @@ export async function deleteProductProfile(id: string): Promise<void> {
   await db
     .delete(productProfiles)
     .where(and(eq(productProfiles.id, id), eq(productProfiles.userId, userId)))
+}
+
+const MAX_CONTENT_IMAGES = 20
+
+export async function addProductContentImage(
+  productId: string,
+  image: { name: string; dataUrl: string }
+): Promise<ProductProfile> {
+  const userId = await getCurrentUserId()
+  const [existing] = await db
+    .select()
+    .from(productProfiles)
+    .where(
+      and(eq(productProfiles.id, productId), eq(productProfiles.userId, userId))
+    )
+    .limit(1)
+  if (!existing) throw new Error("Product not found")
+
+  const contentImages = [
+    ...(existing.contentImages ?? []),
+    { id: crypto.randomUUID(), name: image.name, dataUrl: image.dataUrl },
+  ].slice(-MAX_CONTENT_IMAGES)
+
+  const [updated] = await db
+    .update(productProfiles)
+    .set({ contentImages })
+    .where(eq(productProfiles.id, productId))
+    .returning()
+  return toProductProfile(updated!)
+}
+
+export async function removeProductContentImage(
+  productId: string,
+  imageId: string
+): Promise<ProductProfile> {
+  const userId = await getCurrentUserId()
+  const [existing] = await db
+    .select()
+    .from(productProfiles)
+    .where(
+      and(eq(productProfiles.id, productId), eq(productProfiles.userId, userId))
+    )
+    .limit(1)
+  if (!existing) throw new Error("Product not found")
+
+  const contentImages = (existing.contentImages ?? []).filter(
+    (image) => image.id !== imageId
+  )
+
+  const [updated] = await db
+    .update(productProfiles)
+    .set({ contentImages })
+    .where(eq(productProfiles.id, productId))
+    .returning()
+  return toProductProfile(updated!)
 }
