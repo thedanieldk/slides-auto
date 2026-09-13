@@ -338,7 +338,7 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
                         onClick={(event) =>
                           void removeSlideshow(event, project)
                         }
-                        className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white backdrop-blur-sm transition hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
