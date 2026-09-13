@@ -1854,6 +1854,10 @@ async function renderSlideToBlob(
       width: EXPORT_WIDTH,
       height: EXPORT_HEIGHT,
       pixelRatio: 1,
+      // html-to-image's image-embed cache strips query params by default,
+      // so every /api/images/proxy?url=... request collapsed onto the same
+      // cache key and reused whichever image loaded first.
+      includeQueryParams: true,
     })
   } finally {
     root.unmount()
