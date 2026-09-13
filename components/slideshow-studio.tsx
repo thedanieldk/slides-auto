@@ -463,7 +463,24 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
     setEditingLayerId(null)
   }
 
+  /**
+   * Saves whatever is currently being typed in the inline editor before an
+   * action switches the active slide. Native blur alone isn't reliable here
+   * (e.g. clicking a slide thumbnail button doesn't always move focus in
+   * Safari), so this is called explicitly ahead of every activeSlideId
+   * change instead of assuming onBlur already ran.
+   */
+  function commitActiveEdit() {
+    if (!editingLayerId) return
+    const layer = activeSlide.textLayers.find(
+      (item) => item.id === editingLayerId
+    )
+    if (!layer || !inlineEditorRef.current) return
+    finishInlineEditing(layer, serializeEditableNode(inlineEditorRef.current))
+  }
+
   function addSlide() {
+    commitActiveEdit()
     updateProject((current) => {
       const currentTextStyle = getAppliedTextStyle(current.slides)
       const nextSlide = createSlide(
@@ -481,6 +498,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   }
 
   function duplicateSlide(slideId: string) {
+    commitActiveEdit()
     updateProject((current) => {
       const index = current.slides.findIndex((slide) => slide.id === slideId)
       const source = current.slides[index]!
@@ -501,6 +519,7 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   function removeSlide(slideId: string) {
     if (project.slides.length === 1) return
 
+    commitActiveEdit()
     updateProject((current) => {
       const index = current.slides.findIndex((slide) => slide.id === slideId)
       const slides = current.slides.filter((slide) => slide.id !== slideId)
@@ -906,12 +925,13 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
                   >
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        commitActiveEdit()
                         updateProject((current) => ({
                           ...current,
                           activeSlideId: slide.id,
                         }))
-                      }
+                      }}
                       className={cn(
                         "group relative w-full rounded-xl border p-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
                         slide.id === project.activeSlideId
