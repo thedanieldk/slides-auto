@@ -25,7 +25,8 @@ import {
   type ProductProfileDraft,
 } from "@/lib/products/product-profile"
 
-const SELECTED_PROFILE_STORAGE_KEY = "slides-auto.selected-product-profile.v1"
+export const SELECTED_PROFILE_STORAGE_KEY =
+  "slides-auto.selected-product-profile.v1"
 
 type ProductProfilePickerProps = {
   value: ProductProfile | null

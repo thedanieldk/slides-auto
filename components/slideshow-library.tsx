@@ -1,7 +1,15 @@
 "use client"
 
 import { UserButton } from "@clerk/nextjs"
-import { LayoutGrid, PenLine, Plus, Sparkles, Trash2 } from "lucide-react"
+import {
+  LayoutGrid,
+  LoaderCircle,
+  PenLine,
+  Plus,
+  Rocket,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -9,15 +17,28 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { CompositionDialog } from "@/components/composition-dialog"
 import { HooksCanvas } from "@/components/hooks-canvas"
+import { requestHookCopy } from "@/components/hook-copy-list"
+import {
+  ProductProfilePicker,
+  SELECTED_PROFILE_STORAGE_KEY,
+} from "@/components/product-profile-picker"
 import { SlideExportCard } from "@/components/slideshow-studio"
 import type { CompositionResult } from "@/lib/composition"
+import { hookFrameworks } from "@/lib/ai/frameworks"
+import { generatedHooksSchema } from "@/lib/ai/slideshow-generation"
+import { autoFillSlideImages } from "@/lib/images/auto-fill"
 import {
   createBlankProject,
   createProjectFromComposition,
   deleteProject,
   listProjects,
 } from "@/lib/actions/slideshows"
+import { listProductProfiles } from "@/lib/actions/products"
+import type { ProductProfile } from "@/lib/products/product-profile"
 import { slideshowThemes, type SlideshowProject } from "@/lib/slideshow"
+
+const CREATE_BATCH_SIZE = 5
+const createFramework = hookFrameworks[0]!
 
 const tabs = [
   { id: "formats", label: "Formats", icon: LayoutGrid },
@@ -36,6 +57,14 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>("formats")
   const [hasVisitedCopyTab, setHasVisitedCopyTab] = useState(false)
+  const [createProductPromptOpen, setCreateProductPromptOpen] = useState(false)
+  const [createPromptProduct, setCreatePromptProduct] =
+    useState<ProductProfile | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [createProgress, setCreateProgress] = useState<{
+    done: number
+    total: number
+  } | null>(null)
 
   function selectTab(tab: TabId) {
     setActiveTab(tab)
@@ -64,6 +93,86 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
     const project = await createProjectFromComposition(result, productId)
     setComposerOpen(false)
     router.push(`/slideshow/${project.id}`)
+  }
+
+  async function startCreate() {
+    const products = await listProductProfiles()
+    const storedId = window.localStorage.getItem(SELECTED_PROFILE_STORAGE_KEY)
+    const preferred =
+      products.find((product) => product.id === storedId) ?? products[0] ?? null
+
+    if (preferred) {
+      void runCreateBatch(preferred)
+    } else {
+      setCreatePromptProduct(null)
+      setCreateProductPromptOpen(true)
+    }
+  }
+
+  async function runCreateBatch(product: ProductProfile) {
+    setCreateProductPromptOpen(false)
+    setIsCreating(true)
+    setCreateProgress({ done: 0, total: CREATE_BATCH_SIZE })
+
+    try {
+      const hookResponse = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "hooks",
+          frameworkId: createFramework.id,
+          examples: [],
+          product: {
+            name: product.name,
+            niche: product.niche,
+            valueProposition: product.valueProposition,
+          },
+        }),
+      })
+      const hookPayload: unknown = await hookResponse.json()
+      const hookBody = isRecord(hookPayload) ? hookPayload : {}
+      if (!hookResponse.ok) {
+        throw new Error(
+          typeof hookBody.error === "string"
+            ? hookBody.error
+            : "Could not generate hooks."
+        )
+      }
+
+      const generatedHooks = generatedHooksSchema.safeParse(hookBody.data)
+      if (!generatedHooks.success) {
+        throw new Error("The generated hooks were incomplete. Try again.")
+      }
+
+      const hookTexts = generatedHooks.data.hooks.slice(0, CREATE_BATCH_SIZE)
+      let createdCount = 0
+
+      for (const hookText of hookTexts) {
+        try {
+          const composition = await requestHookCopy({
+            hook: hookText,
+            framework: createFramework,
+            layoutId: "clean-white",
+            product,
+          })
+          const filled = await autoFillSlideImages(composition.slides)
+          const project = await createProjectFromComposition(
+            { ...composition, slides: filled.slides },
+            product.id
+          )
+          setProjects((current) => [project, ...current])
+          createdCount += 1
+        } catch (batchError) {
+          console.error("Create batch: one slideshow failed", batchError)
+        }
+        setCreateProgress({ done: createdCount, total: CREATE_BATCH_SIZE })
+      }
+    } catch (createError) {
+      console.error("Create batch failed:", createError)
+    } finally {
+      setIsCreating(false)
+      setCreateProgress(null)
+    }
   }
 
   async function removeSlideshow(
@@ -107,6 +216,27 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
             </button>
           )
         })}
+
+        <Button
+          className="mt-3 w-full bg-[#171821] text-white hover:bg-[#0f1018]"
+          disabled={isCreating}
+          onClick={() => void startCreate()}
+        >
+          {isCreating ? (
+            <LoaderCircle data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <Rocket data-icon="inline-start" />
+          )}
+          {isCreating && createProgress
+            ? `Creating ${createProgress.done}/${createProgress.total}…`
+            : "Create"}
+        </Button>
+        {isCreating && (
+          <p className="px-2 text-[10px] leading-relaxed text-black/40">
+            Writing hooks, copy, and finding images. This takes a minute or two.
+          </p>
+        )}
+
         <div className="mt-auto flex items-center gap-2 px-2 pt-4">
           <UserButton />
           <span className="text-xs text-black/50">Account</span>
@@ -195,6 +325,45 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
         onClose={() => setComposerOpen(false)}
         onApply={handleComposed}
       />
+
+      {createProductPromptOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-[#171820]/55 p-4"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) {
+              setCreateProductPromptOpen(false)
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-black/10 bg-[#f8f7f4] p-5 shadow-2xl">
+            <p className="mb-1 text-sm font-semibold">
+              Pick a product to create with
+            </p>
+            <p className="mb-4 text-xs leading-relaxed text-black/50">
+              Create writes hooks, full copy, slides, and images for this
+              product automatically.
+            </p>
+            <ProductProfilePicker
+              value={createPromptProduct}
+              onChange={setCreatePromptProduct}
+              allowNoProduct={false}
+            />
+            <Button
+              className="w-full"
+              disabled={!createPromptProduct}
+              onClick={() =>
+                createPromptProduct && void runCreateBatch(createPromptProduct)
+              }
+            >
+              Continue
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }

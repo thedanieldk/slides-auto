@@ -55,11 +55,7 @@ import {
   serializeEditableNode,
 } from "@/lib/rich-text"
 import { generatedSlideSchema } from "@/lib/ai/slideshow-generation"
-import { searchImages } from "@/lib/images/search-images"
-import {
-  DEFAULT_IMAGE_QUERY,
-  type ImageSearchResult,
-} from "@/lib/images/image-provider"
+import { autoFillSlideImages } from "@/lib/images/auto-fill"
 import {
   createBlankProject,
   loadProject,
@@ -81,7 +77,6 @@ import {
   slideshowThemes,
   starterProject,
   textStyles,
-  type SlideImage,
   type SlideshowProject,
   type SlideshowSlide,
   type SlideshowTheme,
@@ -739,99 +734,18 @@ export function SlideshowStudio({ projectId }: { projectId: string }) {
   }
 
   async function autoFillMissingImages() {
-    const targets = project.slides.flatMap((slide) => {
-      const query = slide.imageQuery?.trim() || DEFAULT_IMAGE_QUERY
-      return !slide.image ? [{ slide, query }] : []
-    })
-
-    if (targets.length === 0) {
-      setNotice("Every slide already has an image.")
-      return
-    }
-
     setIsAutoFillingImages(true)
     setNotice(null)
     try {
-      const usedImageIds = new Set(
-        project.slides.flatMap((slide) =>
-          slide.image?.id.startsWith("pinterest-") ? [slide.image.id] : []
-        )
-      )
-
-      // Slides commonly share a query (from the same product's image-query
-      // pool), so group by distinct query and search once per group instead
-      // of once per slide.
-      const groups = new Map<string, SlideshowSlide[]>()
-      for (const { slide, query } of targets) {
-        const group = groups.get(query)
-        if (group) {
-          group.push(slide)
-        } else {
-          groups.set(query, [slide])
-        }
-      }
-
-      // Run at most 2 Pinterest searches at once. Slides now often have
-      // distinct queries (one per product's image-query pool), and firing
-      // every group's search in parallel can exceed Apify's concurrent-run
-      // limit, causing some to fail outright.
-      const groupEntries = Array.from(groups.entries())
-      const searches = await runWithConcurrencyLimit(
-        groupEntries,
-        2,
-        async ([query, slides]) => ({
-          slides,
-          results: await searchImages(query, Math.min(slides.length + 3, 20)),
-        })
-      )
-
-      const selectedImages = new Map<string, SlideImage>()
-      let failedCount = 0
-
-      for (const [index, search] of searches.entries()) {
-        if (search.status === "rejected") {
-          console.error(
-            "Pinterest search failed during auto-fill:",
-            search.reason
-          )
-          failedCount += groupEntries[index]![1].length
-          continue
-        }
-
-        const [query] = groupEntries[index]!
-        const { slides, results } = search.value
-        for (const slide of slides) {
-          const result = results.find(
-            (candidate) => !usedImageIds.has(`pinterest-${candidate.id}`)
-          )
-          if (!result) {
-            console.error(
-              `Pinterest search for "${query}" returned ${results.length} results, none usable (all already used or none found)`
-            )
-            failedCount += 1
-            continue
-          }
-
-          const image = toSlideImage(result)
-          usedImageIds.add(image.id)
-          selectedImages.set(slide.id, image)
-        }
-      }
-
-      if (selectedImages.size > 0) {
-        updateProject((current) => ({
-          ...current,
-          slides: current.slides.map((slide) => ({
-            ...slide,
-            image: selectedImages.get(slide.id) ?? slide.image,
-          })),
-        }))
+      const result = await autoFillSlideImages(project.slides)
+      if (result.filledCount > 0) {
+        updateProject((current) => ({ ...current, slides: result.slides }))
       }
 
       setNotice(
-        selectedImages.size === 0
+        result.filledCount === 0
           ? "No matching photos were found. Try again."
-          : `${selectedImages.size} ${selectedImages.size === 1 ? "slide" : "slides"} filled${failedCount ? `; ${failedCount} could not be matched` : ""}.`
+          : `${result.filledCount} ${result.filledCount === 1 ? "slide" : "slides"} filled${result.failedCount ? `; ${result.failedCount} could not be matched` : ""}.`
       )
     } catch (searchError) {
       setNotice(
@@ -1774,35 +1688,6 @@ function getAppliedTextStyle(slides: SlideshowSlide[]): TextStyleId | null {
   )
 }
 
-async function runWithConcurrencyLimit<T, R>(
-  items: T[],
-  limit: number,
-  task: (item: T) => Promise<R>
-): Promise<PromiseSettledResult<R>[]> {
-  const results: PromiseSettledResult<R>[] = new Array(items.length)
-  let nextIndex = 0
-
-  async function worker() {
-    for (;;) {
-      const index = nextIndex++
-      if (index >= items.length) return
-      try {
-        results[index] = {
-          status: "fulfilled",
-          value: await task(items[index]!),
-        }
-      } catch (reason) {
-        results[index] = { status: "rejected", reason }
-      }
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => worker())
-  )
-  return results
-}
-
 function RichText({ value }: { value: string }) {
   return (
     <>
@@ -1815,20 +1700,6 @@ function RichText({ value }: { value: string }) {
       )}
     </>
   )
-}
-
-function toSlideImage(result: ImageSearchResult): SlideImage {
-  return {
-    id: `pinterest-${result.id}`,
-    name: result.alt || "Pinterest photo",
-    dataUrl: result.imageUrl,
-    source: {
-      provider: "pinterest",
-      photographer: result.photographer,
-      photographerUrl: result.photographerUrl,
-      photoUrl: result.photoUrl,
-    },
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
