@@ -1800,10 +1800,31 @@ export function SlideExportCard({
   )
 }
 
+/**
+ * Remote image hosts we don't control (Pinterest's CDN in particular) send
+ * no CORS headers, which taints the export canvas and produces a blank
+ * image. Routing through our own same-origin proxy avoids that; already
+ * same-origin data: URIs (uploaded files) are left as-is.
+ */
+function toExportImageSrc(url: string): string {
+  if (url.startsWith("data:")) return url
+  return `/api/images/proxy?url=${encodeURIComponent(url)}`
+}
+
 async function renderSlideToBlob(
   slide: SlideshowSlide,
   theme: SlideshowTheme
 ): Promise<Blob | null> {
+  const exportSlide: SlideshowSlide = slide.image
+    ? {
+        ...slide,
+        image: {
+          ...slide.image,
+          dataUrl: toExportImageSrc(slide.image.dataUrl),
+        },
+      }
+    : slide
+
   // html-to-image renders a blank canvas for nodes placed far outside the
   // viewport (e.g. position: fixed with a large negative offset), so the
   // export target is kept at normal, in-viewport coordinates and hidden by
@@ -1826,7 +1847,7 @@ async function renderSlideToBlob(
   const root = createRoot(container)
   try {
     flushSync(() => {
-      root.render(<SlideExportCard slide={slide} theme={theme} />)
+      root.render(<SlideExportCard slide={exportSlide} theme={theme} />)
     })
 
     return await toBlob(container, {
