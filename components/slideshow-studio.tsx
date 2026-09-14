@@ -699,9 +699,17 @@ export function SlideshowStudio({
       range.insertNode(strong)
     }
 
+    // Collapse to just after the bolded text rather than leaving it
+    // selected. Keeping it selected meant a duplicate keydown (e.g. OS key
+    // repeat firing twice for one press) would immediately re-enter this
+    // function, detect the selection is now inside the <strong> just
+    // created, and unwrap it again - bolding would silently no-op. A
+    // collapsed selection makes the top-of-function isCollapsed guard
+    // catch that case instead.
     selection.removeAllRanges()
     const newRange = document.createRange()
     newRange.selectNodeContents(strong)
+    newRange.collapse(false)
     selection.addRange(newRange)
   }
 
@@ -1410,7 +1418,10 @@ export function SlideshowStudio({
                             event.key.toLowerCase() === "b"
                           ) {
                             event.preventDefault()
-                            toggleBoldSelection()
+                            // Holding the keys briefly can fire multiple
+                            // keydown events (OS key repeat) for one press;
+                            // only toggle on the first.
+                            if (!event.repeat) toggleBoldSelection()
                           }
                         }}
                       >
