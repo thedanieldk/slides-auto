@@ -1182,7 +1182,7 @@ export function SlideshowStudio({
                                 style={getTextLayerStyle(layer, activeTheme)}
                               >
                                 <span style={getTextLayerContentStyle(layer)}>
-                                  {layer.text}
+                                  <RichText value={layer.text} />
                                 </span>
                               </span>
                             )

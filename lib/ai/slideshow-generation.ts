@@ -143,7 +143,7 @@ const slideProperties = {
 const slideImageQueryProperty = {
   type: "string",
   description:
-    "A short Pinterest search phrase (3-6 words) for this slide's background photo. Candid, personal, iPhone-photo style with natural warm lighting - never a staged, professional, or real-estate-style shot. Broad and aesthetic, never the literal specific product or topic. Every slide in this slideshow must share the exact same visual treatment (same mood, lighting, and color palette) and vary only the subject or setting.",
+    "A short Pinterest search phrase (3-6 words) for this slide's background photo. Candid, personal, iPhone-photo style, never staged, professional, or real-estate-style. Keep a consistent warm, candid aesthetic across the slideshow, but make each slide's subject, framing, and setting genuinely different from the others - mix close-up objects, wide room shots, and shots with a person, and vary the light source and time of day. Never repeat the same setting or subject across slides, and never default to a bedroom just because the topic is about sleep. Never the literal specific product or topic.",
 } as const
 
 const conceptProperties = {
