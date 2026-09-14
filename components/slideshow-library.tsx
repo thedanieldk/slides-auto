@@ -18,6 +18,7 @@ import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { CompositionDialog } from "@/components/composition-dialog"
+import { FrameworkPicker } from "@/components/framework-picker"
 import { HooksCanvas } from "@/components/hooks-canvas"
 import { requestHookCopy } from "@/components/hook-copy-list"
 import {
@@ -28,7 +29,11 @@ import { SlideExportCard } from "@/components/slideshow-studio"
 import { TextStyleMiniature } from "@/components/text-style-miniature"
 import { cn } from "@/lib/utils"
 import type { CompositionResult } from "@/lib/composition"
-import { hookFrameworks } from "@/lib/ai/frameworks"
+import {
+  getHookFramework,
+  hookFrameworks,
+  type HookFrameworkId,
+} from "@/lib/ai/frameworks"
 import { generatedHooksSchema } from "@/lib/ai/slideshow-generation"
 import { autoFillSlideImages } from "@/lib/images/auto-fill"
 import {
@@ -48,8 +53,7 @@ import {
   type TextStyleId,
 } from "@/lib/slideshow"
 
-const CREATE_BATCH_SIZE = 5
-const createFramework = hookFrameworks[0]!
+const CREATE_BATCH_SIZES = [2, 3, 4, 5] as const
 
 const tabs = [
   { id: "formats", label: "Formats", icon: LayoutGrid },
@@ -77,6 +81,12 @@ export function SlideshowLibrary({
     useState<ProductProfile | null>(null)
   const [createTextStyleId, setCreateTextStyleId] = useState<TextStyleId>(
     textStyles[0]!.id
+  )
+  const [createFrameworkId, setCreateFrameworkId] = useState<HookFrameworkId>(
+    hookFrameworks[0]!.id
+  )
+  const [createBatchSize, setCreateBatchSize] = useState<number>(
+    CREATE_BATCH_SIZES[CREATE_BATCH_SIZES.length - 1]
   )
   const [isCreating, setIsCreating] = useState(false)
   const [createProgress, setCreateProgress] = useState<{
@@ -121,16 +131,22 @@ export function SlideshowLibrary({
 
     setCreatePromptProduct(preferred)
     setCreateTextStyleId(textStyles[0]!.id)
+    setCreateFrameworkId(hookFrameworks[0]!.id)
+    setCreateBatchSize(CREATE_BATCH_SIZES[CREATE_BATCH_SIZES.length - 1])
     setCreateDialogOpen(true)
   }
 
   async function runCreateBatch(
     product: ProductProfile,
-    layoutId: TextStyleId
+    layoutId: TextStyleId,
+    frameworkId: HookFrameworkId,
+    batchSize: number
   ) {
+    const framework = getHookFramework(frameworkId)
+
     setCreateDialogOpen(false)
     setIsCreating(true)
-    setCreateProgress({ done: 0, total: CREATE_BATCH_SIZE })
+    setCreateProgress({ done: 0, total: batchSize })
 
     try {
       const hookResponse = await fetch("/api/generate", {
@@ -138,7 +154,7 @@ export function SlideshowLibrary({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           mode: "hooks",
-          frameworkId: createFramework.id,
+          frameworkId: framework.id,
           examples: [],
           product: {
             name: product.name,
@@ -162,14 +178,14 @@ export function SlideshowLibrary({
         throw new Error("The generated hooks were incomplete. Try again.")
       }
 
-      const hookTexts = generatedHooks.data.hooks.slice(0, CREATE_BATCH_SIZE)
+      const hookTexts = generatedHooks.data.hooks.slice(0, batchSize)
       let createdCount = 0
 
       for (const hookText of hookTexts) {
         try {
           const composition = await requestHookCopy({
             hook: hookText,
-            framework: createFramework,
+            framework,
             layoutId,
             product,
           })
@@ -183,7 +199,7 @@ export function SlideshowLibrary({
         } catch (batchError) {
           console.error("Create batch: one slideshow failed", batchError)
         }
-        setCreateProgress({ done: createdCount, total: CREATE_BATCH_SIZE })
+        setCreateProgress({ done: createdCount, total: batchSize })
       }
     } catch (createError) {
       console.error("Create batch failed:", createError)
@@ -229,6 +245,27 @@ export function SlideshowLibrary({
         <div className="mb-4 px-2 text-sm font-semibold tracking-tight text-black/80">
           Slides Auto
         </div>
+
+        <Button
+          className="mb-3 w-full bg-[#171821] text-white hover:bg-[#0f1018]"
+          disabled={isCreating}
+          onClick={() => void startCreate()}
+        >
+          {isCreating ? (
+            <LoaderCircle data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <Rocket data-icon="inline-start" />
+          )}
+          {isCreating && createProgress
+            ? `Creating ${createProgress.done}/${createProgress.total}…`
+            : "Create"}
+        </Button>
+        {isCreating && (
+          <p className="mb-3 px-2 text-[10px] leading-relaxed text-black/40">
+            Writing hooks, copy, and finding images. This takes a minute or two.
+          </p>
+        )}
+
         {tabs.map((tab) => {
           const Icon = tab.icon
           const active = tab.id === activeTab
@@ -248,26 +285,6 @@ export function SlideshowLibrary({
             </button>
           )
         })}
-
-        <Button
-          className="mt-3 w-full bg-[#171821] text-white hover:bg-[#0f1018]"
-          disabled={isCreating}
-          onClick={() => void startCreate()}
-        >
-          {isCreating ? (
-            <LoaderCircle data-icon="inline-start" className="animate-spin" />
-          ) : (
-            <Rocket data-icon="inline-start" />
-          )}
-          {isCreating && createProgress
-            ? `Creating ${createProgress.done}/${createProgress.total}…`
-            : "Create"}
-        </Button>
-        {isCreating && (
-          <p className="px-2 text-[10px] leading-relaxed text-black/40">
-            Writing hooks, copy, and finding images. This takes a minute or two.
-          </p>
-        )}
 
         <div className="mt-auto flex items-center gap-2 px-2 pt-4">
           <UserButton />
@@ -397,15 +414,21 @@ export function SlideshowLibrary({
           }}
         >
           <div className="max-h-[85svh] w-full max-w-sm overflow-y-auto rounded-2xl border border-black/10 bg-[#f8f7f4] p-5 shadow-2xl">
-            <p className="mb-1 text-sm font-semibold">Create 5 slideshows</p>
+            <p className="mb-1 text-sm font-semibold">
+              Create {createBatchSize} slideshows
+            </p>
             <p className="mb-4 text-xs leading-relaxed text-black/50">
               Writes hooks, full copy, slides, and images automatically for the
-              product and text style below.
+              product, framework, and text style below.
             </p>
             <ProductProfilePicker
               value={createPromptProduct}
               onChange={setCreatePromptProduct}
               allowNoProduct={false}
+            />
+            <FrameworkPicker
+              value={createFrameworkId}
+              onChange={setCreateFrameworkId}
             />
             <fieldset className="mb-5">
               <legend className="mb-3 text-xs font-semibold text-black/60">
@@ -432,15 +455,43 @@ export function SlideshowLibrary({
                 ))}
               </div>
             </fieldset>
+            <fieldset className="mb-5">
+              <legend className="mb-3 text-xs font-semibold text-black/60">
+                How many slideshows
+              </legend>
+              <div className="grid grid-cols-4 gap-2">
+                {CREATE_BATCH_SIZES.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    aria-pressed={count === createBatchSize}
+                    onClick={() => setCreateBatchSize(count)}
+                    className={cn(
+                      "rounded-xl border py-2.5 text-center text-sm font-semibold tabular-nums transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                      count === createBatchSize
+                        ? "border-[#4758c7] bg-[#eef0ff] text-[#4758c7]"
+                        : "border-black/10 bg-white text-black/60 hover:border-black/20"
+                    )}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
             <Button
               className="w-full"
               disabled={!createPromptProduct}
               onClick={() =>
                 createPromptProduct &&
-                void runCreateBatch(createPromptProduct, createTextStyleId)
+                void runCreateBatch(
+                  createPromptProduct,
+                  createTextStyleId,
+                  createFrameworkId,
+                  createBatchSize
+                )
               }
             >
-              Create 5 slideshows
+              Create {createBatchSize} slideshows
             </Button>
           </div>
         </div>
