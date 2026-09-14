@@ -7,7 +7,7 @@ import {
   WandSparkles,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ProductProfilePicker } from "@/components/product-profile-picker"
@@ -27,14 +27,13 @@ import {
 import {
   addSavedHooks,
   deleteSavedHook,
-  listSavedHooks,
   saveHookCopy,
 } from "@/lib/actions/hooks"
 import type { SavedHook } from "@/lib/hooks-storage"
 import { createProjectFromComposition } from "@/lib/actions/slideshows"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
-export function HooksCanvas() {
+export function HooksCanvas({ initialHooks }: { initialHooks: SavedHook[] }) {
   const router = useRouter()
   const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
     null
@@ -42,23 +41,13 @@ export function HooksCanvas() {
   const [examplesText, setExamplesText] = useState("")
   const [expandedFrameworkId, setExpandedFrameworkId] =
     useState<HookFrameworkId | null>(hookFrameworks[0]?.id ?? null)
-  const [hooks, setHooks] = useState<SavedHook[]>([])
+  const [hooks, setHooks] = useState<SavedHook[]>(initialHooks)
   const [expandedHookIds, setExpandedHookIds] = useState<Set<string>>(new Set())
   const [copyByHookId, setCopyByHookId] = useState<
     Record<string, HookCopyState>
   >({})
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    void listSavedHooks().then((loaded) => {
-      if (!cancelled) setHooks(loaded)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const updateProduct = useCallback((product: ProductProfile | null) => {
     setSelectedProduct(product)

@@ -40,6 +40,7 @@ import {
 } from "@/lib/actions/slideshows"
 import { listProductProfiles } from "@/lib/actions/products"
 import type { ProductProfile } from "@/lib/products/product-profile"
+import type { SavedHook } from "@/lib/hooks-storage"
 import {
   slideshowThemes,
   textStyles,
@@ -59,9 +60,13 @@ type TabId = (typeof tabs)[number]["id"]
 
 type SlideshowLibraryProps = {
   initialProjects: SlideshowProject[]
+  initialHooks: SavedHook[]
 }
 
-export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
+export function SlideshowLibrary({
+  initialProjects,
+  initialHooks,
+}: SlideshowLibraryProps) {
   const router = useRouter()
   const [projects, setProjects] = useState<SlideshowProject[]>(initialProjects)
   const [composerOpen, setComposerOpen] = useState(false)
@@ -370,7 +375,7 @@ export function SlideshowLibrary({ initialProjects }: SlideshowLibraryProps) {
                   structure, then expand one to write the full slideshow copy.
                 </p>
               </div>
-              <HooksCanvas />
+              <HooksCanvas initialHooks={initialHooks} />
             </div>
           )}
         </div>
