@@ -1369,15 +1369,21 @@ export function SlideshowStudio({
                   >
                     <div className="size-full overflow-hidden">
                       <span
-                        // Remounts on every edit-session start/end instead
-                        // of letting React patch this node. toggleBoldSelection
-                        // mutates this element's DOM directly (inserting or
-                        // removing a real <strong>), which desyncs React's
-                        // internal reconciliation record from the live DOM -
-                        // without this key, the next time layer.text changes
-                        // React tries to patch based on that stale record and
-                        // throws (e.g. "removeChild"/"insertBefore" on a node
-                        // that no longer matches), which crashed the page.
+                        // toggleBoldSelection mutates this element's DOM
+                        // directly (inserting/removing a real <strong>).
+                        // While editing, content is set via
+                        // dangerouslySetInnerHTML (once, at mount) instead
+                        // of React-controlled children, so React treats
+                        // this subtree as opaque and never tries to diff it
+                        // against a stale record - without that, any
+                        // unrelated re-render (e.g. autosave) while editing
+                        // could make React "fix" the DOM back to what it
+                        // last rendered, silently undoing the bold. The key
+                        // forces a full remount at the editing/not-editing
+                        // transition, since React errors if the same
+                        // element switches between dangerouslySetInnerHTML
+                        // and children without one - a patch attempt there
+                        // previously crashed the page.
                         key={isEditing ? `${layer.id}-editing` : layer.id}
                         ref={isEditing ? inlineEditorRef : undefined}
                         className="whitespace-pre-wrap outline-none"
@@ -1424,13 +1430,22 @@ export function SlideshowStudio({
                             if (!event.repeat) toggleBoldSelection()
                           }
                         }}
-                      >
-                        {layer.text ? (
-                          <RichText value={layer.text} />
-                        ) : (
-                          `Add ${layer.name.toLowerCase()} text`
-                        )}
-                      </span>
+                        {...(isEditing
+                          ? {
+                              dangerouslySetInnerHTML: {
+                                __html: layer.text
+                                  ? richTextToHtml(layer.text)
+                                  : `Add ${layer.name.toLowerCase()} text`,
+                              },
+                            }
+                          : {
+                              children: layer.text ? (
+                                <RichText value={layer.text} />
+                              ) : (
+                                `Add ${layer.name.toLowerCase()} text`
+                              ),
+                            })}
+                      />
                     </div>
 
                     {isSelected && !isEditing && !layer.locked && (
