@@ -1,6 +1,10 @@
 import type { CopyFormatId } from "@/lib/ai/copy-formats"
 
-export const hookFrameworkIds = ["five-step", "change-list"] as const
+export const hookFrameworkIds = [
+  "five-step",
+  "change-list",
+  "routine-coach",
+] as const
 
 export type HookFrameworkId = (typeof hookFrameworkIds)[number]
 
@@ -47,6 +51,20 @@ export const hookFrameworks: readonly HookFramework[] = [
     copyFormatId: "change-list",
     itemCount: 6,
     slideCount: 7,
+    numberedList: false,
+  },
+  {
+    id: "routine-coach",
+    name: "Routine Coach",
+    description:
+      "A dedicated title slide naming the routine and who it's for, then direct step-by-step coaching, one per slide.",
+    exampleTitle:
+      "Winter night routine: for the girls trying to wake up at 5am",
+    exampleSlide:
+      "MINDSET MATTERS!!! Go to bed telling yourself you can't wait to move your body tomorrow, not just hoping you'll wake up.",
+    copyFormatId: "routine-coach",
+    itemCount: 7,
+    slideCount: 8,
     numberedList: false,
   },
 ]
