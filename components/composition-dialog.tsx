@@ -39,6 +39,7 @@ type CompositionDialogProps = {
   open: boolean
   onClose: () => void
   onApply: (result: CompositionResult, productId: string | null) => void
+  initialProducts: ProductProfile[]
 }
 
 type ComposerMode = "ai" | "script"
@@ -47,6 +48,7 @@ export function CompositionDialog({
   open,
   onClose,
   onApply,
+  initialProducts,
 }: CompositionDialogProps) {
   const [script, setScript] = useState("")
   const [mode, setMode] = useState<ComposerMode>("ai")
@@ -280,6 +282,7 @@ export function CompositionDialog({
                       value={selectedProduct}
                       onChange={updateProduct}
                       allowNoProduct={false}
+                      initialProfiles={initialProducts}
                     />
 
                     <FrameworkPicker

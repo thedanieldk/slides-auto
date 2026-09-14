@@ -33,7 +33,13 @@ import type { SavedHook } from "@/lib/hooks-storage"
 import { createProjectFromComposition } from "@/lib/actions/slideshows"
 import type { ProductProfile } from "@/lib/products/product-profile"
 
-export function HooksCanvas({ initialHooks }: { initialHooks: SavedHook[] }) {
+export function HooksCanvas({
+  initialHooks,
+  initialProducts,
+}: {
+  initialHooks: SavedHook[]
+  initialProducts: ProductProfile[]
+}) {
   const router = useRouter()
   const [selectedProduct, setSelectedProduct] = useState<ProductProfile | null>(
     null
@@ -228,6 +234,7 @@ export function HooksCanvas({ initialHooks }: { initialHooks: SavedHook[] }) {
                       value={selectedProduct}
                       onChange={updateProduct}
                       allowNoProduct={false}
+                      initialProfiles={initialProducts}
                     />
 
                     <label className="mb-5 block">

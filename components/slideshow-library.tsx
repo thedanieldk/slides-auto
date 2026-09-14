@@ -65,11 +65,13 @@ type TabId = (typeof tabs)[number]["id"]
 type SlideshowLibraryProps = {
   initialProjects: SlideshowProject[]
   initialHooks: SavedHook[]
+  initialProducts: ProductProfile[]
 }
 
 export function SlideshowLibrary({
   initialProjects,
   initialHooks,
+  initialProducts,
 }: SlideshowLibraryProps) {
   const router = useRouter()
   const [projects, setProjects] = useState<SlideshowProject[]>(initialProjects)
@@ -392,7 +394,10 @@ export function SlideshowLibrary({
                   structure, then expand one to write the full slideshow copy.
                 </p>
               </div>
-              <HooksCanvas initialHooks={initialHooks} />
+              <HooksCanvas
+                initialHooks={initialHooks}
+                initialProducts={initialProducts}
+              />
             </div>
           )}
         </div>
@@ -402,6 +407,7 @@ export function SlideshowLibrary({
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
         onApply={handleComposed}
+        initialProducts={initialProducts}
       />
 
       {createDialogOpen && (
@@ -425,6 +431,7 @@ export function SlideshowLibrary({
               value={createPromptProduct}
               onChange={setCreatePromptProduct}
               allowNoProduct={false}
+              initialProfiles={initialProducts}
             />
             <FrameworkPicker
               value={createFrameworkId}

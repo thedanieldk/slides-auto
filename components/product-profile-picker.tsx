@@ -32,6 +32,7 @@ type ProductProfilePickerProps = {
   value: ProductProfile | null
   onChange: (profile: ProductProfile | null) => void
   allowNoProduct?: boolean
+  initialProfiles: ProductProfile[]
 }
 
 type ProfileAnalysis = ProductProfileDraft & { sourceUrl: string }
@@ -40,8 +41,9 @@ export function ProductProfilePicker({
   value,
   onChange,
   allowNoProduct = true,
+  initialProfiles,
 }: ProductProfilePickerProps) {
-  const [profiles, setProfiles] = useState<ProductProfile[]>([])
+  const [profiles, setProfiles] = useState<ProductProfile[]>(initialProfiles)
   const [addingProduct, setAddingProduct] = useState(false)
   const [url, setUrl] = useState("")
   const [draft, setDraft] = useState<ProfileAnalysis | null>(null)
@@ -50,23 +52,24 @@ export function ProductProfilePicker({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const selectedId = window.localStorage.getItem(SELECTED_PROFILE_STORAGE_KEY)
+    const selected = initialProfiles.find(
+      (profile) => profile.id === selectedId
+    )
+    if (selected) onChange(selected)
+    // Only ever needs to run once, against the server-provided initial list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
-
     void listProductProfiles().then((loaded) => {
-      if (cancelled) return
-      setProfiles(loaded)
-
-      const selectedId = window.localStorage.getItem(
-        SELECTED_PROFILE_STORAGE_KEY
-      )
-      const selected = loaded.find((profile) => profile.id === selectedId)
-      if (selected) onChange(selected)
+      if (!cancelled) setProfiles(loaded)
     })
-
     return () => {
       cancelled = true
     }
-  }, [onChange])
+  }, [])
 
   function selectProfile(profile: ProductProfile | null) {
     onChange(profile)
