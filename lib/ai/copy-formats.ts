@@ -2,6 +2,7 @@ export const copyFormatIds = [
   "smart",
   "personal-results",
   "helpful-habits",
+  "change-list",
 ] as const
 
 export type CopyFormatId = (typeof copyFormatIds)[number]
@@ -33,6 +34,12 @@ export const copyFormats = [
       "Give useful standalone tips with one expanded recommendation.",
     productRole: "One natural product cameo",
   },
+  {
+    id: "change-list",
+    name: "Change List",
+    description: "Short, unnumbered changes that add up to one result.",
+    productRole: "One of the specific changes",
+  },
 ] as const satisfies readonly CopyFormat[]
 
 export function getCopyFormatInstructions(formatId: CopyFormatId) {
@@ -52,6 +59,12 @@ export function getCopyFormatInstructions(formatId: CopyFormatId) {
 - If the topic includes a product, place it naturally inside that expanded middle item, then return to non-product value on the following slide.
 - End casually and without a hard sell.
 - Make sure the number promised in the hook exactly matches the numbered items that follow.`
+    case "change-list":
+      return `Use the Change List format:
+- Open with a natural, specific title naming the result achieved. Never promise a number or say "N things" in the title.
+- Give each change its own slide as a short, standalone phrase, 2 to 6 words. Never a full sentence, never numbered, never explained or justified.
+- Do not elaborate on any item. Trust the phrase alone, like a quick note rather than a caption.
+- If the topic includes a product, let exactly one item name it naturally as one of the specific changes, not a separate pitch.`
     case "smart":
       return `Choose whichever of these structures best fits the topic: Personal Results List or Helpful Habits List. Follow that structure consistently. If the topic does not provide real personal experience or a product, do not invent either one.`
   }

@@ -1,6 +1,6 @@
 import type { CopyFormatId } from "@/lib/ai/copy-formats"
 
-export const hookFrameworkIds = ["five-step"] as const
+export const hookFrameworkIds = ["five-step", "change-list"] as const
 
 export type HookFrameworkId = (typeof hookFrameworkIds)[number]
 
@@ -15,6 +15,12 @@ export type HookFramework = {
   itemCount: number
   /** Total slides, including the dedicated title slide. */
   slideCount: number
+  /**
+   * Whether the title promises a specific count ("5 ways I...") and the
+   * items themselves are written as a numbered list. False for formats
+   * whose title reads like a plain personal story with unnumbered items.
+   */
+  numberedList: boolean
 }
 
 export const hookFrameworks: readonly HookFramework[] = [
@@ -29,6 +35,19 @@ export const hookFrameworks: readonly HookFramework[] = [
     copyFormatId: "personal-results",
     itemCount: 5,
     slideCount: 6,
+    numberedList: true,
+  },
+  {
+    id: "change-list",
+    name: "Change List",
+    description:
+      "A dedicated title slide, then short, unnumbered changes you personally made, one per slide.",
+    exampleTitle: "How I stopped going to bed at 2am",
+    exampleSlide: "Same wake-up time",
+    copyFormatId: "change-list",
+    itemCount: 6,
+    slideCount: 7,
+    numberedList: false,
   },
 ]
 
