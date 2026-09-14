@@ -80,7 +80,7 @@ Product placement: ${request.concept.productPlacement}
     const framework = getHookFramework(request.frameworkId)
     const countInstruction = framework.numberedList
       ? `Each hook must promise exactly ${framework.itemCount} items the way the example title does, stay under 120 characters, and be meaningfully different from the other hooks in topic and phrasing. Do not number the hooks themselves or write any supporting copy — just the title line.`
-      : `Each hook should read like a natural, specific personal story title, never promising a number or saying “${framework.itemCount} things”. Stay under 120 characters and be meaningfully different from the other hooks in topic and phrasing. Do not write any supporting copy — just the title line.`
+      : `Each hook must be an umbrella title that frames a whole list of separate small changes still to come — never a single specific action or result by itself (a single action belongs on a later slide, not the title). Use patterns like "How I stopped/finally started...", "Things I stopped doing after [a time or trigger] that...", or "Weird/small habits I've quietly built that actually work" — never promise a number or say “${framework.itemCount} things”. Stay under 120 characters and be meaningfully different from the other hooks in topic and phrasing. Do not write any supporting copy — just the title line.`
 
     const sections = [
       `Write exactly ${HOOK_BATCH_SIZE} distinct opening hooks — slide 1 headlines only, no body copy — for a short vertical slideshow about the product below. Every hook must fit the “${framework.name}” framework described below. Do not drift into a different structure.`,

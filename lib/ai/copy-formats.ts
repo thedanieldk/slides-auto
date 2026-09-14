@@ -61,7 +61,7 @@ export function getCopyFormatInstructions(formatId: CopyFormatId) {
 - Make sure the number promised in the hook exactly matches the numbered items that follow.`
     case "change-list":
       return `Use the Change List format:
-- Open with a natural, specific title naming the result achieved. Never promise a number or say "N things" in the title.
+- Open with an umbrella title that promises a whole list of separate small changes still to come, e.g. "How I stopped going to bed at 2am", "Things I stopped doing after 10pm that made me sleep better", "Weird bedtime habits I've quietly built that actually work". Never promise a number or say "N things", and never let the title itself read as a single specific action - that belongs on a later slide, not the title.
 - Give each change its own slide as a short, standalone phrase, 2 to 6 words. Never a full sentence, never numbered, never explained or justified.
 - Do not elaborate on any item. Trust the phrase alone, like a quick note rather than a caption.
 - If the topic includes a product, let exactly one item name it naturally as one of the specific changes, not a separate pitch.`
