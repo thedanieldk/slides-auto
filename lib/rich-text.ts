@@ -39,19 +39,15 @@ export function richTextToHtml(value: string): string {
     .join("")
 }
 
-const BOLD_FONT_WEIGHTS = new Set([
-  "bold",
-  "bolder",
-  "600",
-  "700",
-  "800",
-  "900",
-])
-
 function isBoldElement(element: HTMLElement): boolean {
-  if (element.tagName === "B" || element.tagName === "STRONG") return true
-  const weight = element.style.fontWeight
-  return weight ? BOLD_FONT_WEIGHTS.has(weight) : false
+  // Bold is only ever inserted by our own toggleBoldSelection (always a
+  // <strong>), never by the browser's native execCommand - its bold-state
+  // heuristic gets confused when a layer's base style is already semi-bold
+  // (e.g. the hook layer's 600 weight), sometimes producing a font-weight
+  // override that isn't a real bold toggle. Checking font-weight here used
+  // to treat that as bold, which caused the first press to appear to do
+  // nothing. Tag name alone is unambiguous.
+  return element.tagName === "B" || element.tagName === "STRONG"
 }
 
 /**

@@ -658,6 +658,54 @@ export function SlideshowStudio({
   }
 
   /**
+   * Explicit bold toggle, bound to Cmd/Ctrl+B while editing, instead of
+   * relying on the browser's native execCommand("bold"). execCommand
+   * decides whether text is "already bold" from the ambient computed
+   * font-weight, which gets confused when a layer's base style is already
+   * semi-bold (e.g. the hook layer's 600 weight) - the first press can be
+   * read as "un-bold" and produce no detectable change, so it looked like
+   * bolding silently failed on the first try. Always inserting/removing a
+   * literal <strong> ourselves removes that ambiguity entirely.
+   */
+  function toggleBoldSelection() {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return
+    }
+
+    const range = selection.getRangeAt(0)
+    const anchor =
+      range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.commonAncestorContainer as HTMLElement)
+        : range.commonAncestorContainer.parentElement
+    const strongAncestor = anchor?.closest("strong, b")
+
+    if (strongAncestor) {
+      const parent = strongAncestor.parentNode
+      if (!parent) return
+      while (strongAncestor.firstChild) {
+        parent.insertBefore(strongAncestor.firstChild, strongAncestor)
+      }
+      parent.removeChild(strongAncestor)
+      return
+    }
+
+    const strong = document.createElement("strong")
+    try {
+      range.surroundContents(strong)
+    } catch {
+      const fragment = range.extractContents()
+      strong.appendChild(fragment)
+      range.insertNode(strong)
+    }
+
+    selection.removeAllRanges()
+    const newRange = document.createRange()
+    newRange.selectNodeContents(strong)
+    selection.addRange(newRange)
+  }
+
+  /**
    * Saves whatever is currently being typed in the inline editor before an
    * action switches the active slide. Native blur alone isn't reliable here
    * (e.g. clicking a slide thumbnail button doesn't always move focus in
@@ -1346,6 +1394,13 @@ export function SlideshowStudio({
                           ) {
                             event.preventDefault()
                             event.currentTarget.blur()
+                          }
+                          if (
+                            (event.metaKey || event.ctrlKey) &&
+                            event.key.toLowerCase() === "b"
+                          ) {
+                            event.preventDefault()
+                            toggleBoldSelection()
                           }
                         }}
                       >
