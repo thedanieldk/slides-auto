@@ -1361,6 +1361,16 @@ export function SlideshowStudio({
                   >
                     <div className="size-full overflow-hidden">
                       <span
+                        // Remounts on every edit-session start/end instead
+                        // of letting React patch this node. toggleBoldSelection
+                        // mutates this element's DOM directly (inserting or
+                        // removing a real <strong>), which desyncs React's
+                        // internal reconciliation record from the live DOM -
+                        // without this key, the next time layer.text changes
+                        // React tries to patch based on that stale record and
+                        // throws (e.g. "removeChild"/"insertBefore" on a node
+                        // that no longer matches), which crashed the page.
+                        key={isEditing ? `${layer.id}-editing` : layer.id}
                         ref={isEditing ? inlineEditorRef : undefined}
                         className="whitespace-pre-wrap outline-none"
                         style={getTextLayerContentStyle(layer)}
