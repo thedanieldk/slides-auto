@@ -1413,7 +1413,7 @@ export function SlideshowStudio({
                       )}
                     >
                       <span
-                        className="relative block aspect-[9/12] overflow-hidden rounded-lg"
+                        className="relative block aspect-[9/12] overflow-hidden"
                         style={{
                           background:
                             slide.backgroundColor ?? activeTheme.background,
@@ -1547,7 +1547,7 @@ export function SlideshowStudio({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.985 }}
               transition={{ duration: 0.16 }}
-              className="relative aspect-[9/16] max-h-[68svh] w-full max-w-96 overflow-hidden rounded-[1.75rem] shadow-[0_28px_70px_rgba(35,36,47,.22)] ring-1 ring-black/10"
+              className="relative aspect-[9/16] max-h-[68svh] w-full max-w-96 overflow-hidden shadow-[0_28px_70px_rgba(35,36,47,.22)] ring-1 ring-black/10"
               style={{
                 background:
                   activeSlide.backgroundColor ?? activeTheme.background,
