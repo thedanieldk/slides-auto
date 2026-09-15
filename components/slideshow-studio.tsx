@@ -1638,7 +1638,7 @@ export function SlideshowStudio({
                         // previously crashed the page.
                         key={isEditing ? `${layer.id}-editing` : layer.id}
                         ref={isEditing ? inlineEditorRef : undefined}
-                        className="whitespace-pre-wrap outline-none"
+                        className="block min-h-[1em] w-full whitespace-pre-wrap outline-none"
                         style={getTextLayerContentStyle(layer)}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
