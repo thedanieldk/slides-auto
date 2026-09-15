@@ -22,7 +22,6 @@ import {
   Search,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { toBlob } from "html-to-image"
@@ -262,9 +261,13 @@ export function SlideshowStudio({
         null)
       : null
   const navDeleteTarget:
-    { kind: "layer"; layer: TextLayer } | { kind: "image" } | null =
-    explicitlySelectedLayer
-      ? { kind: "layer", layer: explicitlySelectedLayer }
+    | { kind: "layer"; layer: TextLayer }
+    | { kind: "overlay"; layer: ImageOverlay }
+    | { kind: "image" }
+    | null = explicitlySelectedLayer
+    ? { kind: "layer", layer: explicitlySelectedLayer }
+    : selectedImageLayer
+      ? { kind: "overlay", layer: selectedImageLayer }
       : activeSlide.image
         ? { kind: "image" }
         : null
@@ -405,6 +408,8 @@ export function SlideshowStudio({
     if (!navDeleteTarget) return
     if (navDeleteTarget.kind === "image") {
       updateActiveSlide({ image: null })
+    } else if (navDeleteTarget.kind === "overlay") {
+      removeImageOverlay(navDeleteTarget.layer.id)
     } else {
       toggleLayerVisibility(navDeleteTarget.layer)
     }
@@ -413,7 +418,14 @@ export function SlideshowStudio({
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Delete" && event.key !== "Backspace") return
-      if (!selectedLayer || !selectedLayer.visible || selectedLayer.locked) {
+      if (!navDeleteTarget) return
+      if (
+        navDeleteTarget.kind === "layer" &&
+        (!navDeleteTarget.layer.visible || navDeleteTarget.layer.locked)
+      ) {
+        return
+      }
+      if (navDeleteTarget.kind === "overlay" && navDeleteTarget.layer.locked) {
         return
       }
 
@@ -425,15 +437,15 @@ export function SlideshowStudio({
       if (isEditingText) return
 
       event.preventDefault()
-      toggleLayerVisibility(selectedLayer)
+      handleNavDelete()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-    // toggleLayerVisibility only wraps updateTextLayer, which reads current
-    // state through setProject's updater, so omitting it here is safe.
+    // handleNavDelete/toggleLayerVisibility/removeImageOverlay read current
+    // state through setProject's updater, so omitting them here is safe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLayer])
+  }, [navDeleteTarget])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -505,6 +517,7 @@ export function SlideshowStudio({
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedLayerId(layer.id)
+    setSelectedImageLayerId(null)
     layerInteractionRef.current = {
       layerId: layer.id,
       mode,
@@ -1270,18 +1283,22 @@ export function SlideshowStudio({
                   ? "Nothing to delete"
                   : navDeleteTarget.kind === "image"
                     ? "Remove image"
-                    : navDeleteTarget.layer.visible
-                      ? `Delete ${navDeleteTarget.layer.name.toLowerCase()} layer`
-                      : `Restore ${navDeleteTarget.layer.name.toLowerCase()} layer`
+                    : navDeleteTarget.kind === "overlay"
+                      ? `Delete ${navDeleteTarget.layer.name.toLowerCase()}`
+                      : navDeleteTarget.layer.visible
+                        ? `Delete ${navDeleteTarget.layer.name.toLowerCase()} layer`
+                        : `Restore ${navDeleteTarget.layer.name.toLowerCase()} layer`
               }
               title={
                 navDeleteTarget?.kind === "image"
                   ? "Remove image"
-                  : navDeleteTarget?.kind === "layer"
-                    ? navDeleteTarget.layer.visible
-                      ? "Delete this text box"
-                      : "Restore this text box"
-                    : undefined
+                  : navDeleteTarget?.kind === "overlay"
+                    ? "Delete this image"
+                    : navDeleteTarget?.kind === "layer"
+                      ? navDeleteTarget.layer.visible
+                        ? "Delete this text box"
+                        : "Restore this text box"
+                      : undefined
               }
               onClick={handleNavDelete}
               className={cn(
@@ -1535,15 +1552,6 @@ export function SlideshowStudio({
                     </div>
                     {isSelected && !layer.locked && (
                       <>
-                        <button
-                          type="button"
-                          aria-label={`Remove ${layer.name}`}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={() => removeImageOverlay(layer.id)}
-                          className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border-2 border-white bg-red-600 text-white shadow-sm"
-                        >
-                          <X className="size-3" />
-                        </button>
                         <button
                           type="button"
                           aria-label={`Fill the whole slide with ${layer.name}`}
@@ -1977,6 +1985,17 @@ export function SlideshowStudio({
                 <p className="mt-2 text-[10px] leading-relaxed text-black/40">
                   Scales the image up within its current box - the box itself
                   stays the same size.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => removeImageOverlay(selectedImageLayer.id)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete image
+                </Button>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-black/40">
+                  Or press Delete/Backspace with it selected.
                 </p>
               </fieldset>
             )}
