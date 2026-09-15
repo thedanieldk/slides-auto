@@ -2598,24 +2598,24 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
         boxShadow: "0 1.2cqw 3cqw rgba(0,0,0,.3)",
       }}
     >
-      <div className="flex items-center" style={{ gap: "2.2cqw" }}>
+      <div className="flex" style={{ gap: "2.4cqw" }}>
         {layer.appIconDataUrl ? (
           <img
             src={layer.appIconDataUrl}
             alt=""
-            className="shrink-0 object-cover"
+            className="shrink-0 self-stretch object-cover"
             style={{
               width: "7.6cqw",
-              height: "7.6cqw",
+              minHeight: "7.6cqw",
               borderRadius: "1.8cqw",
             }}
           />
         ) : (
           <div
-            className="grid shrink-0 place-items-center bg-white/20 font-bold"
+            className="grid shrink-0 place-items-center self-stretch bg-white/20 font-bold"
             style={{
               width: "7.6cqw",
-              height: "7.6cqw",
+              minHeight: "7.6cqw",
               borderRadius: "1.8cqw",
               fontSize: "3.2cqw",
             }}
@@ -2623,25 +2623,33 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
             {(layer.appName || "A").slice(0, 1).toUpperCase()}
           </div>
         )}
-        <span
-          className="flex-1 truncate font-semibold"
-          style={{ fontSize: "3.4cqw" }}
-        >
-          {layer.appName || "App"}
-        </span>
-        <span
-          className="shrink-0 text-white/55"
-          style={{ fontSize: "2.85cqw" }}
-        >
-          {layer.timeLabel}
-        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center" style={{ gap: "2cqw" }}>
+            <span
+              className="flex-1 truncate font-semibold"
+              style={{ fontSize: "3.4cqw" }}
+            >
+              {layer.appName || "App"}
+            </span>
+            <span
+              className="shrink-0 text-white/55"
+              style={{ fontSize: "2.85cqw" }}
+            >
+              {layer.timeLabel}
+            </span>
+          </div>
+          <p
+            className="text-pretty text-white/90"
+            style={{
+              fontSize: "3.15cqw",
+              marginTop: "1cqw",
+              lineHeight: 1.35,
+            }}
+          >
+            {layer.message}
+          </p>
+        </div>
       </div>
-      <p
-        className="text-pretty text-white/90"
-        style={{ fontSize: "3.15cqw", marginTop: "1.6cqw", lineHeight: 1.35 }}
-      >
-        {layer.message}
-      </p>
     </div>
   )
 }
