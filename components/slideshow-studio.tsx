@@ -1442,6 +1442,40 @@ export function SlideshowStudio({
                               </span>
                             )
                         )}
+                        {(slide.imageLayers ?? []).map((layer) => (
+                          <span
+                            key={layer.id}
+                            className="absolute z-20 block overflow-hidden"
+                            style={{
+                              left: `${layer.rect.x}%`,
+                              top: `${layer.rect.y}%`,
+                              width: `${layer.rect.width}%`,
+                              height: `${layer.rect.height}%`,
+                            }}
+                          >
+                            <img
+                              src={layer.dataUrl}
+                              alt=""
+                              className="size-full object-cover"
+                              style={{
+                                transform: `scale(${layer.imageScale})`,
+                              }}
+                            />
+                          </span>
+                        ))}
+                        {(slide.notificationLayers ?? []).map((layer) => (
+                          <span
+                            key={layer.id}
+                            className="absolute z-30 block"
+                            style={{
+                              left: `${layer.x}%`,
+                              top: `${layer.y}%`,
+                              width: `${layer.width}%`,
+                            }}
+                          >
+                            <NotificationCard layer={layer} />
+                          </span>
+                        ))}
                       </span>
                     </button>
 
