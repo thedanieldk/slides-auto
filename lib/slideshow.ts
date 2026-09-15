@@ -100,6 +100,19 @@ export type ImageOverlay = {
   imageScale: number
 }
 
+/** A fake phone notification card placed on top of the slide. Height always hugs its content. */
+export type NotificationOverlay = {
+  id: string
+  x: number
+  y: number
+  width: number
+  locked: boolean
+  appName: string
+  appIconDataUrl: string | null
+  message: string
+  timeLabel: string
+}
+
 export type SlideshowSlide = {
   id: string
   layoutId: SlideLayoutId
@@ -108,6 +121,7 @@ export type SlideshowSlide = {
   imageQuery: string | null
   textLayers: TextLayer[]
   imageLayers: ImageOverlay[]
+  notificationLayers: NotificationOverlay[]
   /** Overrides the theme's background for this slide only, when set. */
   backgroundColor: string | null
 }
@@ -165,11 +179,16 @@ type LegacyProject = {
 
 type StoredSlideV2 = Omit<
   SlideshowSlide,
-  "layoutId" | "imageQuery" | "imageLayers" | "backgroundColor"
+  | "layoutId"
+  | "imageQuery"
+  | "imageLayers"
+  | "notificationLayers"
+  | "backgroundColor"
 > & {
   layoutId?: SlideLayoutId
   imageQuery?: string | null
   imageLayers?: (Omit<ImageOverlay, "imageScale"> & { imageScale?: number })[]
+  notificationLayers?: NotificationOverlay[]
   backgroundColor?: string | null
 }
 
@@ -549,6 +568,7 @@ function createStarterSlide(
     imageQuery: null,
     textLayers: createTextLayers(id, headline, body),
     imageLayers: [],
+    notificationLayers: [],
     backgroundColor: null,
   }
 }
@@ -600,7 +620,22 @@ export function createSlide(
       layoutId
     ),
     imageLayers: [],
+    notificationLayers: [],
     backgroundColor: null,
+  }
+}
+
+export function createNotificationOverlay(): NotificationOverlay {
+  return {
+    id: makeId(),
+    x: 8,
+    y: 10,
+    width: 84,
+    locked: false,
+    appName: "App",
+    appIconDataUrl: null,
+    message: "Your notification message goes here",
+    timeLabel: "now",
   }
 }
 
@@ -672,6 +707,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
             ...layer,
             imageScale: layer.imageScale ?? 1,
           })),
+          notificationLayers: slide.notificationLayers ?? [],
           backgroundColor: slide.backgroundColor ?? null,
         }
 
@@ -695,6 +731,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
       imageQuery: null,
       textLayers: createTextLayers(slide.id, slide.headline, slide.body),
       imageLayers: [],
+      notificationLayers: [],
       backgroundColor: null,
     })),
     updatedAt: new Date().toISOString(),

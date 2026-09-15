@@ -67,6 +67,7 @@ import type { ProductContentImage } from "@/lib/products/product-profile"
 import {
   applySlideLayout,
   createCustomTextLayer,
+  createNotificationOverlay,
   createSlide,
   getTextLayer,
   getTextShadow,
@@ -77,6 +78,7 @@ import {
   textStyles,
   type ImageOverlay,
   type LayerRect,
+  type NotificationOverlay,
   type SlideshowProject,
   type SlideshowSlide,
   type SlideshowTheme,
@@ -134,6 +136,15 @@ type LayerInteraction = {
   moved: boolean
 }
 
+type NotificationInteraction = {
+  layerId: string
+  pointerId: number
+  startX: number
+  startY: number
+  startPos: { x: number; y: number }
+  moved: boolean
+}
+
 function cloneStarterProject() {
   return structuredClone(starterProject)
 }
@@ -160,6 +171,8 @@ export function SlideshowStudio({
   const [selectedImageLayerId, setSelectedImageLayerId] = useState<
     string | null
   >(null)
+  const [selectedNotificationLayerId, setSelectedNotificationLayerId] =
+    useState<string | null>(null)
   const [contentImages, setContentImages] = useState<ProductContentImage[]>([])
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -169,6 +182,10 @@ export function SlideshowStudio({
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
   const imageLayerInteractionRef = useRef<LayerInteraction | null>(null)
+  const notificationInteractionRef = useRef<NotificationInteraction | null>(
+    null
+  )
+  const notificationIconInputRef = useRef<HTMLInputElement>(null)
   const copiedLayerRef = useRef<TextLayer | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
   const isFirstRenderRef = useRef(true)
@@ -251,6 +268,10 @@ export function SlideshowStudio({
     (activeSlide.imageLayers ?? []).find(
       (layer) => layer.id === selectedImageLayerId
     ) ?? null
+  const selectedNotificationLayer =
+    (activeSlide.notificationLayers ?? []).find(
+      (layer) => layer.id === selectedNotificationLayerId
+    ) ?? null
   const selectedLayer =
     activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
     hookLayer ??
@@ -263,14 +284,17 @@ export function SlideshowStudio({
   const navDeleteTarget:
     | { kind: "layer"; layer: TextLayer }
     | { kind: "overlay"; layer: ImageOverlay }
+    | { kind: "notification"; layer: NotificationOverlay }
     | { kind: "image" }
     | null = explicitlySelectedLayer
     ? { kind: "layer", layer: explicitlySelectedLayer }
     : selectedImageLayer
       ? { kind: "overlay", layer: selectedImageLayer }
-      : activeSlide.image
-        ? { kind: "image" }
-        : null
+      : selectedNotificationLayer
+        ? { kind: "notification", layer: selectedNotificationLayer }
+        : activeSlide.image
+          ? { kind: "image" }
+          : null
   const selectedFont = selectedLayer
     ? (FONT_OPTIONS.find(
         (font) => font.id === selectedLayer.style.fontFamily
@@ -356,6 +380,8 @@ export function SlideshowStudio({
       ),
     }))
     setSelectedImageLayerId(layer.id)
+    setSelectedLayerId(null)
+    setSelectedNotificationLayerId(null)
   }
 
   function removeImageOverlay(layerId: string) {
@@ -373,6 +399,141 @@ export function SlideshowStudio({
       ),
     }))
     setSelectedImageLayerId(null)
+  }
+
+  function addNotificationOverlay() {
+    const layer = createNotificationOverlay()
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? {
+              ...slide,
+              notificationLayers: [...(slide.notificationLayers ?? []), layer],
+            }
+          : slide
+      ),
+    }))
+    setSelectedNotificationLayerId(layer.id)
+    setSelectedLayerId(null)
+    setSelectedImageLayerId(null)
+  }
+
+  function updateNotificationLayer(
+    layerId: string,
+    changes: Partial<NotificationOverlay>
+  ) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? {
+              ...slide,
+              notificationLayers: (slide.notificationLayers ?? []).map(
+                (layer) =>
+                  layer.id === layerId ? { ...layer, ...changes } : layer
+              ),
+            }
+          : slide
+      ),
+    }))
+  }
+
+  function removeNotificationLayer(layerId: string) {
+    updateProject((current) => ({
+      ...current,
+      slides: current.slides.map((slide) =>
+        slide.id === current.activeSlideId
+          ? {
+              ...slide,
+              notificationLayers: (slide.notificationLayers ?? []).filter(
+                (layer) => layer.id !== layerId
+              ),
+            }
+          : slide
+      ),
+    }))
+    setSelectedNotificationLayerId(null)
+  }
+
+  function startNotificationInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    layer: NotificationOverlay
+  ) {
+    if (layer.locked) return
+    if (event.pointerType === "mouse" && event.button !== 0) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setSelectedNotificationLayerId(layer.id)
+    setSelectedLayerId(null)
+    setSelectedImageLayerId(null)
+    notificationInteractionRef.current = {
+      layerId: layer.id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startPos: { x: layer.x, y: layer.y },
+      moved: false,
+    }
+  }
+
+  function moveNotificationInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = notificationInteractionRef.current
+    const canvas = slideCanvasRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId || !canvas) {
+      return
+    }
+
+    const canvasRect = canvas.getBoundingClientRect()
+    const deltaX =
+      ((event.clientX - interaction.startX) / canvasRect.width) * 100
+    const deltaY =
+      ((event.clientY - interaction.startY) / canvasRect.height) * 100
+    interaction.moved ||= Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5
+
+    const layer = (activeSlide.notificationLayers ?? []).find(
+      (item) => item.id === interaction.layerId
+    )
+    const width = layer?.width ?? 84
+    const start = interaction.startPos
+
+    updateNotificationLayer(interaction.layerId, {
+      x: clamp(start.x + deltaX, 0, 100 - width),
+      y: clamp(start.y + deltaY, 0, 95),
+    })
+  }
+
+  function finishNotificationInteraction(
+    event: ReactPointerEvent<HTMLElement>
+  ) {
+    const interaction = notificationInteractionRef.current
+    if (!interaction || interaction.pointerId !== event.pointerId) return
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    notificationInteractionRef.current = null
+  }
+
+  function handleNotificationIconUpload(file: File | undefined) {
+    if (!file || !selectedNotificationLayer) return
+    if (!file.type.startsWith("image/")) {
+      setNotice("Choose an image file such as PNG, JPEG, or WebP.")
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 15 MB.")
+      return
+    }
+
+    const layerId = selectedNotificationLayer.id
+    resizeImageToDataUrl(file)
+      .then((appIconDataUrl) => {
+        updateNotificationLayer(layerId, { appIconDataUrl })
+      })
+      .catch(() => setNotice("Could not process this image. Try again."))
   }
 
   function updateSelectedLayerStyle(changes: Partial<TextLayer["style"]>) {
@@ -410,6 +571,8 @@ export function SlideshowStudio({
       updateActiveSlide({ image: null })
     } else if (navDeleteTarget.kind === "overlay") {
       removeImageOverlay(navDeleteTarget.layer.id)
+    } else if (navDeleteTarget.kind === "notification") {
+      removeNotificationLayer(navDeleteTarget.layer.id)
     } else {
       toggleLayerVisibility(navDeleteTarget.layer)
     }
@@ -426,6 +589,12 @@ export function SlideshowStudio({
         return
       }
       if (navDeleteTarget.kind === "overlay" && navDeleteTarget.layer.locked) {
+        return
+      }
+      if (
+        navDeleteTarget.kind === "notification" &&
+        navDeleteTarget.layer.locked
+      ) {
         return
       }
 
@@ -518,6 +687,7 @@ export function SlideshowStudio({
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedLayerId(layer.id)
     setSelectedImageLayerId(null)
+    setSelectedNotificationLayerId(null)
     layerInteractionRef.current = {
       layerId: layer.id,
       mode,
@@ -614,6 +784,7 @@ export function SlideshowStudio({
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedImageLayerId(layer.id)
     setSelectedLayerId(null)
+    setSelectedNotificationLayerId(null)
     imageLayerInteractionRef.current = {
       layerId: layer.id,
       mode,
@@ -1285,20 +1456,24 @@ export function SlideshowStudio({
                     ? "Remove image"
                     : navDeleteTarget.kind === "overlay"
                       ? `Delete ${navDeleteTarget.layer.name.toLowerCase()}`
-                      : navDeleteTarget.layer.visible
-                        ? `Delete ${navDeleteTarget.layer.name.toLowerCase()} layer`
-                        : `Restore ${navDeleteTarget.layer.name.toLowerCase()} layer`
+                      : navDeleteTarget.kind === "notification"
+                        ? "Delete notification"
+                        : navDeleteTarget.layer.visible
+                          ? `Delete ${navDeleteTarget.layer.name.toLowerCase()} layer`
+                          : `Restore ${navDeleteTarget.layer.name.toLowerCase()} layer`
               }
               title={
                 navDeleteTarget?.kind === "image"
                   ? "Remove image"
                   : navDeleteTarget?.kind === "overlay"
                     ? "Delete this image"
-                    : navDeleteTarget?.kind === "layer"
-                      ? navDeleteTarget.layer.visible
-                        ? "Delete this text box"
-                        : "Restore this text box"
-                      : undefined
+                    : navDeleteTarget?.kind === "notification"
+                      ? "Delete this notification"
+                      : navDeleteTarget?.kind === "layer"
+                        ? navDeleteTarget.layer.visible
+                          ? "Delete this text box"
+                          : "Restore this text box"
+                        : undefined
               }
               onClick={handleNavDelete}
               className={cn(
@@ -1591,6 +1766,33 @@ export function SlideshowStudio({
                   </div>
                 )
               })}
+              {(activeSlide.notificationLayers ?? []).map((layer) => {
+                const isSelected = selectedNotificationLayerId === layer.id
+                return (
+                  <div
+                    key={layer.id}
+                    className={cn(
+                      "absolute z-30 touch-none",
+                      layer.locked ? "cursor-default" : "cursor-move",
+                      isSelected &&
+                        "outline-2 outline-offset-2 outline-[#4758c7]"
+                    )}
+                    style={{
+                      left: `${layer.x}%`,
+                      top: `${layer.y}%`,
+                      width: `${layer.width}%`,
+                    }}
+                    onPointerDown={(event) =>
+                      startNotificationInteraction(event, layer)
+                    }
+                    onPointerMove={moveNotificationInteraction}
+                    onPointerUp={finishNotificationInteraction}
+                    onPointerCancel={finishNotificationInteraction}
+                  >
+                    <NotificationCard layer={layer} />
+                  </div>
+                )
+              })}
             </motion.div>
           </AnimatePresence>
         </section>
@@ -1633,6 +1835,14 @@ export function SlideshowStudio({
               >
                 <Plus data-icon="inline-start" />
                 Add text box
+              </Button>
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={addNotificationOverlay}
+              >
+                <Plus data-icon="inline-start" />
+                Add notification
               </Button>
               <p className="mt-2 text-[10px] leading-relaxed text-black/40">
                 Select a text box and press Cmd/Ctrl+C, then Cmd/Ctrl+V to copy
@@ -2000,6 +2210,129 @@ export function SlideshowStudio({
               </fieldset>
             )}
 
+            {selectedNotificationLayer && !selectedNotificationLayer.locked && (
+              <fieldset className="mb-6 rounded-xl border border-black/10 bg-white p-3">
+                <legend className="mb-1 px-1 text-[11px] font-medium text-black/50">
+                  Selected notification
+                </legend>
+
+                <input
+                  ref={notificationIconInputRef}
+                  className="sr-only"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(event) => {
+                    handleNotificationIconUpload(event.target.files?.[0])
+                    event.target.value = ""
+                  }}
+                />
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    aria-label="Change app icon"
+                    title="Change app icon"
+                    onClick={() => notificationIconInputRef.current?.click()}
+                    className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40 transition hover:border-black/25"
+                  >
+                    {selectedNotificationLayer.appIconDataUrl ? (
+                      <img
+                        src={selectedNotificationLayer.appIconDataUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      (selectedNotificationLayer.appName || "A")
+                        .slice(0, 1)
+                        .toUpperCase()
+                    )}
+                  </button>
+                  <label className="block min-w-0 flex-1">
+                    <span className="mb-1 block text-[10px] font-semibold text-black/50">
+                      App or sender
+                    </span>
+                    <input
+                      type="text"
+                      value={selectedNotificationLayer.appName}
+                      maxLength={30}
+                      onChange={(event) =>
+                        updateNotificationLayer(selectedNotificationLayer.id, {
+                          appName: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-lg border border-black/10 bg-white px-2.5 py-2 text-xs outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+                    />
+                  </label>
+                </div>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-[10px] font-semibold text-black/50">
+                    Message
+                  </span>
+                  <textarea
+                    value={selectedNotificationLayer.message}
+                    maxLength={200}
+                    rows={3}
+                    onChange={(event) =>
+                      updateNotificationLayer(selectedNotificationLayer.id, {
+                        message: event.target.value,
+                      })
+                    }
+                    className="w-full resize-none rounded-lg border border-black/10 bg-white px-2.5 py-2 text-xs leading-relaxed outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+                  />
+                </label>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-[10px] font-semibold text-black/50">
+                    Time label
+                  </span>
+                  <input
+                    type="text"
+                    value={selectedNotificationLayer.timeLabel}
+                    maxLength={20}
+                    placeholder="now, 2m ago, Yesterday…"
+                    onChange={(event) =>
+                      updateNotificationLayer(selectedNotificationLayer.id, {
+                        timeLabel: event.target.value,
+                      })
+                    }
+                    className="w-full rounded-lg border border-black/10 bg-white px-2.5 py-2 text-xs outline-none focus:border-[#4758c7] focus:ring-3 focus:ring-[#4758c7]/10"
+                  />
+                </label>
+
+                <EditorRange
+                  label="Width"
+                  value={selectedNotificationLayer.width}
+                  display={`${Math.round(selectedNotificationLayer.width)}%`}
+                  min={40}
+                  max={94}
+                  step={1}
+                  onChange={(width) =>
+                    updateNotificationLayer(selectedNotificationLayer.id, {
+                      width: clamp(
+                        width,
+                        40,
+                        100 - selectedNotificationLayer.x
+                      ),
+                    })
+                  }
+                />
+
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() =>
+                    removeNotificationLayer(selectedNotificationLayer.id)
+                  }
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete notification
+                </Button>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-black/40">
+                  Or press Delete/Backspace with it selected.
+                </p>
+              </fieldset>
+            )}
+
             <div className="mb-6">
               <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
               <input
@@ -2254,6 +2587,65 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
+function NotificationCard({ layer }: { layer: NotificationOverlay }) {
+  return (
+    <div
+      className="text-white backdrop-blur-xl"
+      style={{
+        borderRadius: "5cqw",
+        background: "rgba(20,20,20,.5)",
+        padding: "3cqw 3.4cqw",
+        boxShadow: "0 1.2cqw 3cqw rgba(0,0,0,.3)",
+      }}
+    >
+      <div className="flex items-center" style={{ gap: "2.2cqw" }}>
+        {layer.appIconDataUrl ? (
+          <img
+            src={layer.appIconDataUrl}
+            alt=""
+            className="shrink-0 object-cover"
+            style={{
+              width: "7.6cqw",
+              height: "7.6cqw",
+              borderRadius: "1.8cqw",
+            }}
+          />
+        ) : (
+          <div
+            className="grid shrink-0 place-items-center bg-white/20 font-bold"
+            style={{
+              width: "7.6cqw",
+              height: "7.6cqw",
+              borderRadius: "1.8cqw",
+              fontSize: "3.2cqw",
+            }}
+          >
+            {(layer.appName || "A").slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <span
+          className="flex-1 truncate font-semibold"
+          style={{ fontSize: "3.4cqw" }}
+        >
+          {layer.appName || "App"}
+        </span>
+        <span
+          className="shrink-0 text-white/55"
+          style={{ fontSize: "2.85cqw" }}
+        >
+          {layer.timeLabel}
+        </span>
+      </div>
+      <p
+        className="text-pretty text-white/90"
+        style={{ fontSize: "3.15cqw", marginTop: "1.6cqw", lineHeight: 1.35 }}
+      >
+        {layer.message}
+      </p>
+    </div>
+  )
+}
+
 function getTextLayerStyle(
   layer: TextLayer,
   theme: SlideshowTheme
@@ -2379,6 +2771,19 @@ export function SlideExportCard({
             className="size-full object-cover"
             style={{ transform: `scale(${layer.imageScale})` }}
           />
+        </div>
+      ))}
+      {(slide.notificationLayers ?? []).map((layer) => (
+        <div
+          key={layer.id}
+          className="absolute z-30"
+          style={{
+            left: `${layer.x}%`,
+            top: `${layer.y}%`,
+            width: `${layer.width}%`,
+          }}
+        >
+          <NotificationCard layer={layer} />
         </div>
       ))}
     </div>
