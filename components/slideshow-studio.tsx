@@ -226,6 +226,10 @@ export function SlideshowStudio({
       return
     }
 
+    // Reflect the pending save immediately, not just once the debounce
+    // delay elapses and the request actually goes out - otherwise the
+    // badge shows stale info for the whole 800ms+ window after an edit.
+    setSaveState("saving")
     const timeout = window.setTimeout(() => {
       void saveProject(project)
         .then(() => setSaveState("saved"))
