@@ -2641,7 +2641,7 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
           <img
             src={layer.appIconDataUrl}
             alt=""
-            className="shrink-0 self-start object-cover"
+            className="shrink-0 object-cover"
             style={{
               width: "7.6cqw",
               height: "7.6cqw",
@@ -2650,7 +2650,7 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
           />
         ) : (
           <div
-            className="grid shrink-0 place-items-center self-start bg-white/20 font-bold"
+            className="grid shrink-0 place-items-center bg-white/20 font-bold"
             style={{
               width: "7.6cqw",
               height: "7.6cqw",
