@@ -1520,7 +1520,7 @@ export function SlideshowStudio({
                     onPointerCancel={finishImageLayerInteraction}
                   >
                     <div
-                      className="size-full bg-contain bg-center bg-no-repeat"
+                      className="size-full bg-cover bg-center"
                       style={{
                         backgroundImage: `url(${JSON.stringify(layer.dataUrl)})`,
                       }}
@@ -2315,7 +2315,7 @@ export function SlideExportCard({
       {(slide.imageLayers ?? []).map((layer) => (
         <div
           key={layer.id}
-          className="absolute z-20 bg-contain bg-center bg-no-repeat"
+          className="absolute z-20 bg-cover bg-center"
           style={{
             left: `${layer.rect.x}%`,
             top: `${layer.rect.y}%`,
