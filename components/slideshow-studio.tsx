@@ -2249,6 +2249,24 @@ export function SlideshowStudio({
                 </p>
                 <Button
                   variant="outline"
+                  className="mt-3 w-full"
+                  onClick={() =>
+                    updateImageLayer(selectedImageLayer.id, {
+                      rect: { x: 0, y: 0, width: 100, height: 100 },
+                    })
+                  }
+                >
+                  <Maximize2 data-icon="inline-start" />
+                  Fill entire slide
+                </Button>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-black/40">
+                  Stretches the box edge to edge - crops the image if its shape
+                  doesn&apos;t match the slide. The corner handles and the{" "}
+                  <Maximize2 className="inline size-3 align-[-1px]" /> button on
+                  the canvas resize without ever cropping instead.
+                </p>
+                <Button
+                  variant="outline"
                   className="mt-3 w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                   onClick={() => removeImageOverlay(selectedImageLayer.id)}
                 >
