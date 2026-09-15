@@ -106,6 +106,8 @@ export type SlideshowSlide = {
   imageQuery: string | null
   textLayers: TextLayer[]
   imageLayers: ImageOverlay[]
+  /** Overrides the theme's background for this slide only, when set. */
+  backgroundColor: string | null
 }
 
 export type SlideshowProject = {
@@ -161,11 +163,12 @@ type LegacyProject = {
 
 type StoredSlideV2 = Omit<
   SlideshowSlide,
-  "layoutId" | "imageQuery" | "imageLayers"
+  "layoutId" | "imageQuery" | "imageLayers" | "backgroundColor"
 > & {
   layoutId?: SlideLayoutId
   imageQuery?: string | null
   imageLayers?: ImageOverlay[]
+  backgroundColor?: string | null
 }
 
 type StoredProjectV2 = Omit<SlideshowProject, "slides"> & {
@@ -544,6 +547,7 @@ function createStarterSlide(
     imageQuery: null,
     textLayers: createTextLayers(id, headline, body),
     imageLayers: [],
+    backgroundColor: null,
   }
 }
 
@@ -594,6 +598,7 @@ export function createSlide(
       layoutId
     ),
     imageLayers: [],
+    backgroundColor: null,
   }
 }
 
@@ -662,6 +667,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
           layoutId: slide.layoutId ?? "clean-white",
           imageQuery: slide.imageQuery ?? null,
           imageLayers: slide.imageLayers ?? [],
+          backgroundColor: slide.backgroundColor ?? null,
         }
 
         return normalizedSlide.layoutId === "label-body"
@@ -684,6 +690,7 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
       imageQuery: null,
       textLayers: createTextLayers(slide.id, slide.headline, slide.body),
       imageLayers: [],
+      backgroundColor: null,
     })),
     updatedAt: new Date().toISOString(),
   }

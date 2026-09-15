@@ -1181,7 +1181,8 @@ export function SlideshowStudio({
                       <span
                         className="relative block aspect-[9/12] overflow-hidden rounded-lg"
                         style={{
-                          background: activeTheme.background,
+                          background:
+                            slide.backgroundColor ?? activeTheme.background,
                           containerType: "inline-size",
                         }}
                       >
@@ -1306,7 +1307,8 @@ export function SlideshowStudio({
               transition={{ duration: 0.16 }}
               className="relative aspect-[9/16] max-h-[68svh] w-full max-w-96 overflow-hidden rounded-[1.75rem] shadow-[0_28px_70px_rgba(35,36,47,.22)] ring-1 ring-black/10"
               style={{
-                background: activeTheme.background,
+                background:
+                  activeSlide.backgroundColor ?? activeTheme.background,
                 containerType: "inline-size",
               }}
               onDragOver={(event) => event.preventDefault()}
@@ -1621,6 +1623,54 @@ export function SlideshowStudio({
                 it, even onto another slide.
               </p>
             </div>
+
+            <fieldset className="mb-6">
+              <legend className="mb-3 text-xs font-semibold text-black/60">
+                Background
+              </legend>
+              <div className="flex gap-2">
+                {(
+                  [
+                    {
+                      label: "Theme",
+                      value: null,
+                      swatch: activeTheme.background,
+                    },
+                    { label: "Black", value: "#000000", swatch: "#000000" },
+                    { label: "White", value: "#ffffff", swatch: "#ffffff" },
+                  ] as const
+                ).map((option) => {
+                  const selected =
+                    (activeSlide.backgroundColor ?? null) === option.value
+
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      aria-pressed={selected}
+                      title={option.label}
+                      onClick={() =>
+                        updateActiveSlide({ backgroundColor: option.value })
+                      }
+                      className={cn(
+                        "flex flex-1 flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]",
+                        selected
+                          ? "border-[#4758c7] bg-[#eef0ff]"
+                          : "border-black/10 bg-white hover:border-black/20"
+                      )}
+                    >
+                      <span
+                        className="size-6 rounded-full border border-black/10"
+                        style={{ background: option.swatch }}
+                      />
+                      <span className="text-[10px] font-medium text-black/60">
+                        {option.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </fieldset>
 
             <fieldset className="mb-6">
               <legend className="mb-3 text-xs font-semibold text-black/60">
@@ -2235,7 +2285,10 @@ export function SlideExportCard({
   return (
     <div
       className="relative size-full overflow-hidden"
-      style={{ background: theme.background, containerType: "inline-size" }}
+      style={{
+        background: slide.backgroundColor ?? theme.background,
+        containerType: "inline-size",
+      }}
     >
       {slide.image && (
         <div
