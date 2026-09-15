@@ -96,6 +96,8 @@ export type ImageOverlay = {
   dataUrl: string
   rect: LayerRect
   locked: boolean
+  /** Zooms the image within its box without changing the box's own size. 1 = fills the box exactly. */
+  imageScale: number
 }
 
 export type SlideshowSlide = {
@@ -167,7 +169,7 @@ type StoredSlideV2 = Omit<
 > & {
   layoutId?: SlideLayoutId
   imageQuery?: string | null
-  imageLayers?: ImageOverlay[]
+  imageLayers?: (Omit<ImageOverlay, "imageScale"> & { imageScale?: number })[]
   backgroundColor?: string | null
 }
 
@@ -666,7 +668,10 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
           ...slide,
           layoutId: slide.layoutId ?? "clean-white",
           imageQuery: slide.imageQuery ?? null,
-          imageLayers: slide.imageLayers ?? [],
+          imageLayers: (slide.imageLayers ?? []).map((layer) => ({
+            ...layer,
+            imageScale: layer.imageScale ?? 1,
+          })),
           backgroundColor: slide.backgroundColor ?? null,
         }
 

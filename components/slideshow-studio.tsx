@@ -248,6 +248,10 @@ export function SlideshowStudio({
     slideshowThemes[0]
   const hookLayer = getTextLayer(activeSlide, "hook")
   const bodyLayer = getTextLayer(activeSlide, "body")
+  const selectedImageLayer =
+    (activeSlide.imageLayers ?? []).find(
+      (layer) => layer.id === selectedImageLayerId
+    ) ?? null
   const selectedLayer =
     activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
     hookLayer ??
@@ -338,6 +342,7 @@ export function SlideshowStudio({
       dataUrl: image.dataUrl,
       rect: image.rect,
       locked: false,
+      imageScale: 1,
     }
     updateProject((current) => ({
       ...current,
@@ -1519,12 +1524,15 @@ export function SlideshowStudio({
                     onPointerUp={finishImageLayerInteraction}
                     onPointerCancel={finishImageLayerInteraction}
                   >
-                    <div
-                      className="size-full bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url(${JSON.stringify(layer.dataUrl)})`,
-                      }}
-                    />
+                    <div className="size-full overflow-hidden">
+                      <img
+                        src={layer.dataUrl}
+                        alt=""
+                        draggable={false}
+                        className="size-full object-cover"
+                        style={{ transform: `scale(${layer.imageScale})` }}
+                      />
+                    </div>
                     {isSelected && !layer.locked && (
                       <>
                         <button
@@ -1950,6 +1958,29 @@ export function SlideshowStudio({
               </fieldset>
             )}
 
+            {selectedImageLayer && !selectedImageLayer.locked && (
+              <fieldset className="mb-6 rounded-xl border border-black/10 bg-white p-3">
+                <legend className="mb-1 px-1 text-[11px] font-medium text-black/50">
+                  Selected image
+                </legend>
+                <EditorRange
+                  label="Zoom"
+                  value={selectedImageLayer.imageScale}
+                  display={`${Math.round(selectedImageLayer.imageScale * 100)}%`}
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  onChange={(imageScale) =>
+                    updateImageLayer(selectedImageLayer.id, { imageScale })
+                  }
+                />
+                <p className="mt-2 text-[10px] leading-relaxed text-black/40">
+                  Scales the image up within its current box - the box itself
+                  stays the same size.
+                </p>
+              </fieldset>
+            )}
+
             <div className="mb-6">
               <p className="mb-3 text-xs font-semibold text-black/60">Image</p>
               <input
@@ -2315,15 +2346,21 @@ export function SlideExportCard({
       {(slide.imageLayers ?? []).map((layer) => (
         <div
           key={layer.id}
-          className="absolute z-20 bg-cover bg-center"
+          className="absolute z-20 overflow-hidden"
           style={{
             left: `${layer.rect.x}%`,
             top: `${layer.rect.y}%`,
             width: `${layer.rect.width}%`,
             height: `${layer.rect.height}%`,
-            backgroundImage: `url(${JSON.stringify(layer.dataUrl)})`,
           }}
-        />
+        >
+          <img
+            src={layer.dataUrl}
+            alt=""
+            className="size-full object-cover"
+            style={{ transform: `scale(${layer.imageScale})` }}
+          />
+        </div>
       ))}
     </div>
   )
