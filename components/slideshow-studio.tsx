@@ -2636,24 +2636,24 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
         boxShadow: "0 1.2cqw 3cqw rgba(0,0,0,.3)",
       }}
     >
-      <div className="flex" style={{ gap: "2.4cqw" }}>
+      <div className="flex items-center" style={{ gap: "2.4cqw" }}>
         {layer.appIconDataUrl ? (
           <img
             src={layer.appIconDataUrl}
             alt=""
-            className="shrink-0 self-stretch object-cover"
+            className="shrink-0 self-start object-cover"
             style={{
               width: "7.6cqw",
-              minHeight: "7.6cqw",
+              height: "7.6cqw",
               borderRadius: "1.8cqw",
             }}
           />
         ) : (
           <div
-            className="grid shrink-0 place-items-center self-stretch bg-white/20 font-bold"
+            className="grid shrink-0 place-items-center self-start bg-white/20 font-bold"
             style={{
               width: "7.6cqw",
-              minHeight: "7.6cqw",
+              height: "7.6cqw",
               borderRadius: "1.8cqw",
               fontSize: "3.2cqw",
             }}
