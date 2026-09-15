@@ -164,6 +164,7 @@ export function SlideshowStudio({
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const contentImageInputRef = useRef<HTMLInputElement>(null)
+  const overlayImageInputRef = useRef<HTMLInputElement>(null)
   const slideCanvasRef = useRef<HTMLDivElement>(null)
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
@@ -947,6 +948,30 @@ export function SlideshowStudio({
       rect: { x: 35, y: 40, width: 30, height: 20 },
     })
     setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
+  }
+
+  function handleImageOverlayUpload(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setNotice("Choose an image file such as PNG, JPEG, or WebP.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 5 MB.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return
+      addImageOverlay({
+        name: file.name,
+        dataUrl: reader.result,
+        rect: { x: 10, y: 12, width: 80, height: 76 },
+      })
+      setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
+    }
+    reader.readAsDataURL(file)
   }
 
   function removeContentImage(imageId: string) {
@@ -1915,6 +1940,30 @@ export function SlideshowStudio({
               <p className="mb-3 text-xs font-semibold text-black/60">
                 Content
               </p>
+
+              <input
+                ref={overlayImageInputRef}
+                className="sr-only"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(event) => {
+                  handleImageOverlayUpload(event.target.files?.[0])
+                  event.target.value = ""
+                }}
+              />
+              <Button
+                variant="outline"
+                className="mb-1.5 w-full"
+                onClick={() => overlayImageInputRef.current?.click()}
+              >
+                <ImagePlus data-icon="inline-start" />
+                Add image overlay
+              </Button>
+              <p className="mb-4 text-[10px] leading-relaxed text-black/40">
+                Adds this image as a draggable, resizable layer on this slide
+                only, shown in full and never cropped. No product required.
+              </p>
+
               {!project.productId ? (
                 <p className="rounded-xl border border-dashed border-black/15 px-3 py-2.5 text-[11px] leading-relaxed text-black/40">
                   Link a product when composing a slideshow to save reusable
