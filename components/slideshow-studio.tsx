@@ -542,8 +542,8 @@ export function SlideshowStudio({
 
     const layerId = selectedNotificationLayer.id
     resizeImageToDataUrl(file)
-      .then((appIconDataUrl) => {
-        updateNotificationLayer(layerId, { appIconDataUrl })
+      .then(({ dataUrl }) => {
+        updateNotificationLayer(layerId, { appIconDataUrl: dataUrl })
       })
       .catch(() => setNotice("Could not process this image. Try again."))
   }
@@ -1095,7 +1095,7 @@ export function SlideshowStudio({
     }
 
     try {
-      const dataUrl = await resizeImageToDataUrl(file)
+      const { dataUrl } = await resizeImageToDataUrl(file)
       updateActiveSlide({
         image: { id: crypto.randomUUID(), name: file.name, dataUrl },
       })
@@ -1119,7 +1119,7 @@ export function SlideshowStudio({
     const productId = project.productId
     setIsUploadingContentImage(true)
     try {
-      const dataUrl = await resizeImageToDataUrl(file)
+      const { dataUrl } = await resizeImageToDataUrl(file)
       const product = await addProductContentImage(productId, {
         name: file.name,
         dataUrl,
@@ -1154,11 +1154,11 @@ export function SlideshowStudio({
     }
 
     try {
-      const dataUrl = await resizeImageToDataUrl(file)
+      const { dataUrl, width, height } = await resizeImageToDataUrl(file)
       addImageOverlay({
         name: file.name,
         dataUrl,
-        rect: { x: 10, y: 12, width: 80, height: 76 },
+        rect: computeFitRect(width, height),
       })
       setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
     } catch {
@@ -3044,7 +3044,9 @@ const MAX_UPLOADED_IMAGE_DIMENSION = 1440
  * an unprocessed phone screenshot or camera photo can easily blow past
  * that on its own, so every upload path funnels through this first.
  */
-function resizeImageToDataUrl(file: File): Promise<string> {
+type ResizedImage = { dataUrl: string; width: number; height: number }
+
+function resizeImageToDataUrl(file: File): Promise<ResizedImage> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file)
     const image = new Image()
@@ -3075,11 +3077,10 @@ function resizeImageToDataUrl(file: File): Promise<string> {
       // like a screenshot, undoing most of the size reduction from
       // downscaling. Only use PNG when the image actually has transparent
       // pixels to preserve.
-      resolve(
-        canvasHasTransparency(context, width, height)
-          ? canvas.toDataURL("image/png")
-          : canvas.toDataURL("image/jpeg", 0.85)
-      )
+      const dataUrl = canvasHasTransparency(context, width, height)
+        ? canvas.toDataURL("image/png")
+        : canvas.toDataURL("image/jpeg", 0.85)
+      resolve({ dataUrl, width, height })
     }
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl)
@@ -3087,6 +3088,38 @@ function resizeImageToDataUrl(file: File): Promise<string> {
     }
     image.src = objectUrl
   })
+}
+
+const CANVAS_ASPECT_RATIO = 9 / 16
+
+/**
+ * A default overlay box that matches the image's own aspect ratio, scaled
+ * to fit within the canvas with margin on every side - so a freshly added
+ * overlay shows the whole image uncropped and smaller than the canvas,
+ * the way dropping a photo onto a Canva page does, instead of immediately
+ * cropping it to fit some arbitrary fixed box shape.
+ */
+function computeFitRect(imageWidth: number, imageHeight: number): LayerRect {
+  const maxSpan = 82
+  const minSpan = 20
+  const imageAspect = imageWidth / imageHeight
+  const percentAspect = imageAspect / CANVAS_ASPECT_RATIO
+
+  let width = maxSpan
+  let height = maxSpan / percentAspect
+  if (height > maxSpan) {
+    height = maxSpan
+    width = maxSpan * percentAspect
+  }
+  width = clamp(width, minSpan, maxSpan)
+  height = clamp(height, minSpan, maxSpan)
+
+  return {
+    x: (100 - width) / 2,
+    y: (100 - height) / 2,
+    width,
+    height,
+  }
 }
 
 function canvasHasTransparency(
