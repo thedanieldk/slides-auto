@@ -2441,10 +2441,14 @@ function resizeImageToDataUrl(file: File): Promise<string> {
       }
       context.drawImage(image, 0, 0, width, height)
 
-      const preservesTransparency =
-        file.type === "image/png" || file.type === "image/gif"
+      // Basing this on file.type alone would keep every PNG (including a
+      // fully-opaque phone screenshot, which is PNG by default) as lossless
+      // PNG - that compresses far worse than JPEG on busy, detailed content
+      // like a screenshot, undoing most of the size reduction from
+      // downscaling. Only use PNG when the image actually has transparent
+      // pixels to preserve.
       resolve(
-        preservesTransparency
+        canvasHasTransparency(context, width, height)
           ? canvas.toDataURL("image/png")
           : canvas.toDataURL("image/jpeg", 0.85)
       )
@@ -2455,6 +2459,18 @@ function resizeImageToDataUrl(file: File): Promise<string> {
     }
     image.src = objectUrl
   })
+}
+
+function canvasHasTransparency(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number
+): boolean {
+  const { data } = context.getImageData(0, 0, width, height)
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index]! < 255) return true
+  }
+  return false
 }
 
 function EditorRange({
