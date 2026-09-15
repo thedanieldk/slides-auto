@@ -886,60 +886,54 @@ export function SlideshowStudio({
     setNotice("Starter slideshow restored.")
   }
 
-  function handleImageUpload(file: File | undefined) {
+  async function handleImageUpload(file: File | undefined) {
     if (!file) return
     if (!file.type.startsWith("image/")) {
       setNotice("Choose an image file such as PNG, JPEG, or WebP.")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setNotice("Choose an image smaller than 5 MB.")
+    if (file.size > 15 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 15 MB.")
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return
+    try {
+      const dataUrl = await resizeImageToDataUrl(file)
       updateActiveSlide({
-        image: {
-          id: crypto.randomUUID(),
-          name: file.name,
-          dataUrl: reader.result,
-        },
+        image: { id: crypto.randomUUID(), name: file.name, dataUrl },
       })
       setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
+    } catch {
+      setNotice("Could not process this image. Try again.")
     }
-    reader.readAsDataURL(file)
   }
 
-  function handleContentImageUpload(file: File | undefined) {
+  async function handleContentImageUpload(file: File | undefined) {
     if (!file || !project.productId) return
     if (!file.type.startsWith("image/")) {
       setNotice("Choose an image file such as PNG, JPEG, or WebP.")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setNotice("Choose an image smaller than 5 MB.")
+    if (file.size > 15 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 15 MB.")
       return
     }
 
     const productId = project.productId
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return
-      setIsUploadingContentImage(true)
-      addProductContentImage(productId, {
+    setIsUploadingContentImage(true)
+    try {
+      const dataUrl = await resizeImageToDataUrl(file)
+      const product = await addProductContentImage(productId, {
         name: file.name,
-        dataUrl: reader.result,
+        dataUrl,
       })
-        .then((product) => {
-          setContentImages(product.contentImages ?? [])
-          setNotice(`${file.name} added to this product's content images.`)
-        })
-        .catch(() => setNotice("Could not add this image. Try again."))
-        .finally(() => setIsUploadingContentImage(false))
+      setContentImages(product.contentImages ?? [])
+      setNotice(`${file.name} added to this product's content images.`)
+    } catch {
+      setNotice("Could not add this image. Try again.")
+    } finally {
+      setIsUploadingContentImage(false)
     }
-    reader.readAsDataURL(file)
   }
 
   function addContentImageOverlay(image: ProductContentImage) {
@@ -951,28 +945,28 @@ export function SlideshowStudio({
     setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
   }
 
-  function handleImageOverlayUpload(file: File | undefined) {
+  async function handleImageOverlayUpload(file: File | undefined) {
     if (!file) return
     if (!file.type.startsWith("image/")) {
       setNotice("Choose an image file such as PNG, JPEG, or WebP.")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setNotice("Choose an image smaller than 5 MB.")
+    if (file.size > 15 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 15 MB.")
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return
+    try {
+      const dataUrl = await resizeImageToDataUrl(file)
       addImageOverlay({
         name: file.name,
-        dataUrl: reader.result,
+        dataUrl,
         rect: { x: 10, y: 12, width: 80, height: 76 },
       })
       setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
+    } catch {
+      setNotice("Could not process this image. Try again.")
     }
-    reader.readAsDataURL(file)
   }
 
   function removeContentImage(imageId: string) {
@@ -1914,7 +1908,7 @@ export function SlideshowStudio({
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(event) => {
-                  handleImageUpload(event.target.files?.[0])
+                  void handleImageUpload(event.target.files?.[0])
                   event.target.value = ""
                 }}
               />
@@ -1962,7 +1956,7 @@ export function SlideshowStudio({
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(event) => {
-                  handleImageOverlayUpload(event.target.files?.[0])
+                  void handleImageOverlayUpload(event.target.files?.[0])
                   event.target.value = ""
                 }}
               />
@@ -1992,7 +1986,7 @@ export function SlideshowStudio({
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif"
                     onChange={(event) => {
-                      handleContentImageUpload(event.target.files?.[0])
+                      void handleContentImageUpload(event.target.files?.[0])
                       event.target.value = ""
                     }}
                   />
@@ -2411,6 +2405,56 @@ function getColorInputValue(value: string | null, fallback: string) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+const MAX_UPLOADED_IMAGE_DIMENSION = 1440
+
+/**
+ * Downscales and recompresses an uploaded image before it's stored as a
+ * data URL. Project data (including every image) is saved as a single
+ * JSON blob through a server action, which has a request body size limit -
+ * an unprocessed phone screenshot or camera photo can easily blow past
+ * that on its own, so every upload path funnels through this first.
+ */
+function resizeImageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+
+      const scale = Math.min(
+        1,
+        MAX_UPLOADED_IMAGE_DIMENSION / Math.max(image.width, image.height)
+      )
+      const width = Math.round(image.width * scale)
+      const height = Math.round(image.height * scale)
+
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext("2d")
+      if (!context) {
+        reject(new Error("Could not process this image."))
+        return
+      }
+      context.drawImage(image, 0, 0, width, height)
+
+      const preservesTransparency =
+        file.type === "image/png" || file.type === "image/gif"
+      resolve(
+        preservesTransparency
+          ? canvas.toDataURL("image/png")
+          : canvas.toDataURL("image/jpeg", 0.85)
+      )
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error("Could not read this image."))
+    }
+    image.src = objectUrl
+  })
 }
 
 function EditorRange({
