@@ -98,6 +98,8 @@ export type ImageOverlay = {
   locked: boolean
   /** Zooms the image within its box without changing the box's own size. 1 = fills the box exactly. */
   imageScale: number
+  /** The source image's own pixel width/height ratio, used to resize without ever cropping it. */
+  naturalAspect: number
 }
 
 /** A fake phone notification card placed on top of the slide. Height always hugs its content. */
@@ -187,7 +189,10 @@ type StoredSlideV2 = Omit<
 > & {
   layoutId?: SlideLayoutId
   imageQuery?: string | null
-  imageLayers?: (Omit<ImageOverlay, "imageScale"> & { imageScale?: number })[]
+  imageLayers?: (Omit<ImageOverlay, "imageScale" | "naturalAspect"> & {
+    imageScale?: number
+    naturalAspect?: number
+  })[]
   notificationLayers?: NotificationOverlay[]
   backgroundColor?: string | null
 }
@@ -706,6 +711,13 @@ export function loadSlideshowProject(value: unknown): SlideshowProject | null {
           imageLayers: (slide.imageLayers ?? []).map((layer) => ({
             ...layer,
             imageScale: layer.imageScale ?? 1,
+            // Older saved overlays never tracked the source image's pixel
+            // aspect ratio. Approximate it from the box's current on-canvas
+            // shape so resizing stays consistent with how it already looks,
+            // rather than jumping to an arbitrary ratio.
+            naturalAspect:
+              layer.naturalAspect ??
+              (layer.rect.width / layer.rect.height) * (9 / 16),
           })),
           notificationLayers: slide.notificationLayers ?? [],
           backgroundColor: slide.backgroundColor ?? null,

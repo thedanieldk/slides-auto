@@ -154,6 +154,7 @@ type ImageLayerInteraction = {
   startX: number
   startY: number
   startRect: LayerRect
+  naturalAspect: number
   moved: boolean
 }
 
@@ -374,6 +375,7 @@ export function SlideshowStudio({
     name: string
     dataUrl: string
     rect: LayerRect
+    naturalAspect: number
   }) {
     const layer: ImageOverlay = {
       id: crypto.randomUUID(),
@@ -382,6 +384,7 @@ export function SlideshowStudio({
       rect: image.rect,
       locked: false,
       imageScale: 1,
+      naturalAspect: image.naturalAspect,
     }
     updateProject((current) => ({
       ...current,
@@ -804,6 +807,7 @@ export function SlideshowStudio({
       startX: event.clientX,
       startY: event.clientY,
       startRect: structuredClone(layer.rect),
+      naturalAspect: layer.naturalAspect,
       moved: false,
     }
   }
@@ -830,7 +834,13 @@ export function SlideshowStudio({
             x: clamp(start.x + deltaX, 0, 100 - start.width),
             y: clamp(start.y + deltaY, 0, 100 - start.height),
           }
-        : computeResizedRect(start, interaction.mode, deltaX, deltaY)
+        : computeResizedRect(
+            start,
+            interaction.mode,
+            deltaX,
+            deltaY,
+            interaction.naturalAspect
+          )
 
     updateImageLayer(interaction.layerId, { rect })
   }
@@ -1138,6 +1148,7 @@ export function SlideshowStudio({
       name: image.name,
       dataUrl: image.dataUrl,
       rect: { x: 35, y: 40, width: 30, height: 20 },
+      naturalAspect: 1,
     })
     setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
   }
@@ -1159,6 +1170,7 @@ export function SlideshowStudio({
         name: file.name,
         dataUrl,
         rect: computeFitRect(width, height),
+        naturalAspect: width / height,
       })
       setNotice(`${file.name} added to slide ${activeIndex + 1}.`)
     } catch {
@@ -1552,6 +1564,7 @@ export function SlideshowStudio({
                     width,
                     height,
                   },
+                  naturalAspect: 1,
                 })
               }}
             >
@@ -1737,12 +1750,12 @@ export function SlideshowStudio({
                       <>
                         <button
                           type="button"
-                          aria-label={`Fill the whole slide with ${layer.name}`}
-                          title="Fill the whole slide"
+                          aria-label={`Make ${layer.name} as large as possible without cropping it`}
+                          title="Maximize without cropping"
                           onPointerDown={(event) => event.stopPropagation()}
                           onClick={() =>
                             updateImageLayer(layer.id, {
-                              rect: { x: 0, y: 0, width: 100, height: 100 },
+                              rect: computeMaxFitRect(layer.naturalAspect),
                             })
                           }
                           className="absolute -top-2 left-1/2 grid size-5 -translate-x-1/2 place-items-center rounded-full border-2 border-white bg-[#4758c7] text-white shadow-sm"
@@ -2968,68 +2981,55 @@ function clamp(value: number, minimum: number, maximum: number) {
 }
 
 const MIN_IMAGE_LAYER_SIZE = 8
+const CANVAS_ASPECT_RATIO = 9 / 16
+
+const IMAGE_RESIZE_GROW_DIRECTION: Record<
+  ImageResizeCorner,
+  { x: number; y: number }
+> = {
+  se: { x: 1, y: 1 },
+  nw: { x: -1, y: -1 },
+  ne: { x: 1, y: -1 },
+  sw: { x: -1, y: 1 },
+}
 
 /**
  * Resizes an image overlay's rect from any of its four corners, anchoring
  * the opposite corner in place - e.g. dragging the top-left handle keeps
- * the bottom-right corner fixed and grows/shrinks toward it.
+ * the bottom-right corner fixed and grows/shrinks toward it. Always keeps
+ * the box's aspect ratio locked to the source image's own (naturalAspect,
+ * converted into this rect's percent-of-canvas-width/height units) so
+ * resizing only ever scales the image up or down - never crops it, since
+ * overlays render with background-size: cover.
  */
 function computeResizedRect(
   start: LayerRect,
   corner: ImageResizeCorner,
   deltaX: number,
-  deltaY: number
+  deltaY: number,
+  naturalAspect: number
 ): LayerRect {
-  if (corner === "se") {
-    return {
-      ...start,
-      width: clamp(start.width + deltaX, MIN_IMAGE_LAYER_SIZE, 100 - start.x),
-      height: clamp(start.height + deltaY, MIN_IMAGE_LAYER_SIZE, 100 - start.y),
-    }
-  }
+  const percentAspect = naturalAspect / CANVAS_ASPECT_RATIO
+  const direction = IMAGE_RESIZE_GROW_DIRECTION[corner]
+  const growAmount = deltaX * direction.x + deltaY * direction.y
 
-  if (corner === "ne") {
-    const height = clamp(
-      start.height - deltaY,
-      MIN_IMAGE_LAYER_SIZE,
-      start.y + start.height
-    )
-    return {
-      x: start.x,
-      y: start.y + start.height - height,
-      width: clamp(start.width + deltaX, MIN_IMAGE_LAYER_SIZE, 100 - start.x),
-      height,
-    }
-  }
-
-  if (corner === "sw") {
-    const width = clamp(
-      start.width - deltaX,
-      MIN_IMAGE_LAYER_SIZE,
-      start.x + start.width
-    )
-    return {
-      x: start.x + start.width - width,
-      y: start.y,
-      width,
-      height: clamp(start.height + deltaY, MIN_IMAGE_LAYER_SIZE, 100 - start.y),
-    }
-  }
-
-  // nw
-  const width = clamp(
-    start.width - deltaX,
+  const anchorOnRight = corner === "nw" || corner === "sw"
+  const anchorOnBottom = corner === "nw" || corner === "ne"
+  const anchorX = anchorOnRight ? start.x + start.width : start.x
+  const anchorY = anchorOnBottom ? start.y + start.height : start.y
+  const availableWidth = anchorOnRight ? anchorX : 100 - anchorX
+  const availableHeight = anchorOnBottom ? anchorY : 100 - anchorY
+  const maxWidth = Math.max(
     MIN_IMAGE_LAYER_SIZE,
-    start.x + start.width
+    Math.min(availableWidth, availableHeight * percentAspect)
   )
-  const height = clamp(
-    start.height - deltaY,
-    MIN_IMAGE_LAYER_SIZE,
-    start.y + start.height
-  )
+
+  const width = clamp(start.width + growAmount, MIN_IMAGE_LAYER_SIZE, maxWidth)
+  const height = width / percentAspect
+
   return {
-    x: start.x + start.width - width,
-    y: start.y + start.height - height,
+    x: anchorOnRight ? anchorX - width : anchorX,
+    y: anchorOnBottom ? anchorY - height : anchorY,
     width,
     height,
   }
@@ -3090,21 +3090,18 @@ function resizeImageToDataUrl(file: File): Promise<ResizedImage> {
   })
 }
 
-const CANVAS_ASPECT_RATIO = 9 / 16
-
 /**
- * A default overlay box that matches the image's own aspect ratio, scaled
- * to fit within the canvas with margin on every side - so a freshly added
- * overlay shows the whole image uncropped and smaller than the canvas,
- * the way dropping a photo onto a Canva page does, instead of immediately
- * cropping it to fit some arbitrary fixed box shape.
+ * Builds a rect matching a given percent-space aspect ratio, scaled to fit
+ * within a maxSpan x maxSpan box and centered. Shared by computeFitRect
+ * (the default box for a freshly added overlay) and computeMaxFitRect (the
+ * "fill the whole slide" shortcut) - both need "as large as possible
+ * without ever cropping the image," just with a different max span.
  */
-function computeFitRect(imageWidth: number, imageHeight: number): LayerRect {
-  const maxSpan = 82
-  const minSpan = 20
-  const imageAspect = imageWidth / imageHeight
-  const percentAspect = imageAspect / CANVAS_ASPECT_RATIO
-
+function computeAspectFitRect(
+  percentAspect: number,
+  maxSpan: number,
+  minSpan: number
+): LayerRect {
   let width = maxSpan
   let height = maxSpan / percentAspect
   if (height > maxSpan) {
@@ -3120,6 +3117,28 @@ function computeFitRect(imageWidth: number, imageHeight: number): LayerRect {
     width,
     height,
   }
+}
+
+/**
+ * A default overlay box that matches the image's own aspect ratio, scaled
+ * to fit within the canvas with margin on every side - so a freshly added
+ * overlay shows the whole image uncropped and smaller than the canvas,
+ * the way dropping a photo onto a Canva page does, instead of immediately
+ * cropping it to fit some arbitrary fixed box shape.
+ */
+function computeFitRect(imageWidth: number, imageHeight: number): LayerRect {
+  const percentAspect = imageWidth / imageHeight / CANVAS_ASPECT_RATIO
+  return computeAspectFitRect(percentAspect, 82, 20)
+}
+
+/**
+ * The largest box that fits the image's aspect ratio inside the full
+ * canvas without cropping - one dimension touches the edge, the other
+ * gets margin if the ratios don't match exactly.
+ */
+function computeMaxFitRect(naturalAspect: number): LayerRect {
+  const percentAspect = naturalAspect / CANVAS_ASPECT_RATIO
+  return computeAspectFitRect(percentAspect, 100, MIN_IMAGE_LAYER_SIZE)
 }
 
 function canvasHasTransparency(
