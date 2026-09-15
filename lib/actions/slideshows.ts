@@ -86,6 +86,23 @@ export async function deleteProject(id: string): Promise<void> {
     .where(and(eq(slideshows.id, id), eq(slideshows.userId, userId)))
 }
 
+export async function duplicateProject(
+  id: string
+): Promise<SlideshowProject | null> {
+  const source = await loadProject(id)
+  if (!source) return null
+
+  const duplicate: SlideshowProject = {
+    ...structuredClone(source),
+    id: crypto.randomUUID(),
+    title: `Copy of ${source.title}`,
+    posted: false,
+    updatedAt: new Date().toISOString(),
+  }
+  await saveProject(duplicate)
+  return duplicate
+}
+
 export async function createBlankProject(): Promise<SlideshowProject> {
   const project = createProject()
   await saveProject(project)

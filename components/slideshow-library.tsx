@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs"
 import {
   CheckCircle2,
   Circle,
+  Copy,
   LayoutGrid,
   LoaderCircle,
   PenLine,
@@ -40,6 +41,7 @@ import {
   createBlankProject,
   createProjectFromComposition,
   deleteProject,
+  duplicateProject,
   listProjects,
   setProjectPosted,
 } from "@/lib/actions/slideshows"
@@ -241,6 +243,19 @@ export function SlideshowLibrary({
     await setProjectPosted(project.id, posted)
   }
 
+  async function duplicateSlideshow(
+    event: React.MouseEvent,
+    project: SlideshowProject
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const duplicate = await duplicateProject(project.id)
+    if (duplicate) {
+      setProjects((current) => [duplicate, ...current])
+    }
+  }
+
   return (
     <div className="flex min-h-svh bg-[#e9e7e2] text-[#1b1c24]">
       <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-black/10 bg-[#f4f3ef] px-3 py-6">
@@ -370,16 +385,29 @@ export function SlideshowLibrary({
                           <Circle className="size-4" />
                         )}
                       </button>
-                      <button
-                        type="button"
-                        aria-label={`Delete ${project.title}`}
-                        onClick={(event) =>
-                          void removeSlideshow(event, project)
-                        }
-                        className="absolute top-2 right-2 z-10 grid size-7 place-items-center rounded-lg bg-black/40 text-white backdrop-blur-sm transition hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Duplicate ${project.title}`}
+                          title="Duplicate"
+                          onClick={(event) =>
+                            void duplicateSlideshow(event, project)
+                          }
+                          className="grid size-7 place-items-center rounded-lg bg-black/40 text-white backdrop-blur-sm transition hover:bg-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        >
+                          <Copy className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${project.title}`}
+                          onClick={(event) =>
+                            void removeSlideshow(event, project)
+                          }
+                          className="grid size-7 place-items-center rounded-lg bg-black/40 text-white backdrop-blur-sm transition hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <p className="mt-2 truncate text-sm font-medium text-black/70">
                       {project.title}
