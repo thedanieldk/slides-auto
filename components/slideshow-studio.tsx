@@ -15,6 +15,7 @@ import {
   Images,
   Layers3,
   LoaderCircle,
+  Maximize2,
   Plus,
   RotateCcw,
   Save,
@@ -1538,6 +1539,20 @@ export function SlideshowStudio({
                           className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border-2 border-white bg-red-600 text-white shadow-sm"
                         >
                           <X className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Fill the whole slide with ${layer.name}`}
+                          title="Fill the whole slide"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() =>
+                            updateImageLayer(layer.id, {
+                              rect: { x: 0, y: 0, width: 100, height: 100 },
+                            })
+                          }
+                          className="absolute -top-2 -left-2 grid size-5 place-items-center rounded-full border-2 border-white bg-[#4758c7] text-white shadow-sm"
+                        >
+                          <Maximize2 className="size-2.5" />
                         </button>
                         <button
                           type="button"
