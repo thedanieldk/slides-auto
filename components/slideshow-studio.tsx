@@ -831,8 +831,20 @@ export function SlideshowStudio({
       interaction.mode === "drag"
         ? {
             ...start,
-            x: clamp(start.x + deltaX, 0, 100 - start.width),
-            y: clamp(start.y + deltaY, 0, 100 - start.height),
+            // A box bigger than the canvas (allowed since resize can now
+            // overshoot the border) makes "100 - start.width" negative -
+            // clamp's min/max need to swap order in that case, or every
+            // drag would collapse to the same spot.
+            x: clamp(
+              start.x + deltaX,
+              Math.min(0, 100 - start.width),
+              Math.max(0, 100 - start.width)
+            ),
+            y: clamp(
+              start.y + deltaY,
+              Math.min(0, 100 - start.height),
+              Math.max(0, 100 - start.height)
+            ),
           }
         : computeResizedRect(
             start,
@@ -3020,6 +3032,8 @@ const IMAGE_RESIZE_GROW_DIRECTION: Record<
  * resizing only ever scales the image up or down - never crops it, since
  * overlays render with background-size: cover.
  */
+const MAX_IMAGE_LAYER_SIZE = 400
+
 function computeResizedRect(
   start: LayerRect,
   corner: ImageResizeCorner,
@@ -3035,14 +3049,16 @@ function computeResizedRect(
   const anchorOnBottom = corner === "nw" || corner === "ne"
   const anchorX = anchorOnRight ? start.x + start.width : start.x
   const anchorY = anchorOnBottom ? start.y + start.height : start.y
-  const availableWidth = anchorOnRight ? anchorX : 100 - anchorX
-  const availableHeight = anchorOnBottom ? anchorY : 100 - anchorY
-  const maxWidth = Math.max(
-    MIN_IMAGE_LAYER_SIZE,
-    Math.min(availableWidth, availableHeight * percentAspect)
-  )
 
-  const width = clamp(start.width + growAmount, MIN_IMAGE_LAYER_SIZE, maxWidth)
+  // No upper bound tied to the canvas edges - dragging past the border is
+  // allowed, same as Canva. The canvas itself clips (overflow-hidden), so
+  // growing past 100% just crops the excess visually instead of being
+  // blocked. Aspect ratio still stays locked, so it scales, never distorts.
+  const width = clamp(
+    start.width + growAmount,
+    MIN_IMAGE_LAYER_SIZE,
+    MAX_IMAGE_LAYER_SIZE
+  )
   const height = width / percentAspect
 
   return {
