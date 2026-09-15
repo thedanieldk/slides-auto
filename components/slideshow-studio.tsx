@@ -226,10 +226,16 @@ export function SlideshowStudio({
       return
     }
 
-    // Reflect the pending save immediately, not just once the debounce
-    // delay elapses and the request actually goes out - otherwise the
-    // badge shows stale info for the whole 800ms+ window after an edit.
-    setSaveState("saving")
+    // Reflect the pending save soon, not just once the debounce delay
+    // elapses and the request actually goes out - otherwise the badge
+    // shows stale info for the whole 800ms+ window after an edit. Deferred
+    // to the next frame (rAF) rather than set synchronously in this same
+    // effect: setting it inline landed this state update in the exact same
+    // commit as whatever change triggered it (e.g. text layer content
+    // syncing while still focused), which could race the browser's own
+    // in-progress handling of that edit and reset cursor position while
+    // typing. Giving the browser a frame to finish first avoids that.
+    const savingFrame = requestAnimationFrame(() => setSaveState("saving"))
     const timeout = window.setTimeout(() => {
       void saveProject(project)
         .then(() => setSaveState("saved"))
@@ -240,7 +246,10 @@ export function SlideshowStudio({
         })
     }, 800)
 
-    return () => window.clearTimeout(timeout)
+    return () => {
+      cancelAnimationFrame(savingFrame)
+      window.clearTimeout(timeout)
+    }
   }, [project])
 
   async function saveNow() {
