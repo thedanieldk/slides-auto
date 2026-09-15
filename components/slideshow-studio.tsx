@@ -145,6 +145,18 @@ type NotificationInteraction = {
   moved: boolean
 }
 
+type ImageResizeCorner = "nw" | "ne" | "sw" | "se"
+
+type ImageLayerInteraction = {
+  layerId: string
+  mode: "drag" | ImageResizeCorner
+  pointerId: number
+  startX: number
+  startY: number
+  startRect: LayerRect
+  moved: boolean
+}
+
 function cloneStarterProject() {
   return structuredClone(starterProject)
 }
@@ -181,7 +193,7 @@ export function SlideshowStudio({
   const slideCanvasRef = useRef<HTMLDivElement>(null)
   const inlineEditorRef = useRef<HTMLSpanElement>(null)
   const layerInteractionRef = useRef<LayerInteraction | null>(null)
-  const imageLayerInteractionRef = useRef<LayerInteraction | null>(null)
+  const imageLayerInteractionRef = useRef<ImageLayerInteraction | null>(null)
   const notificationInteractionRef = useRef<NotificationInteraction | null>(
     null
   )
@@ -774,7 +786,7 @@ export function SlideshowStudio({
   function startImageLayerInteraction(
     event: ReactPointerEvent<HTMLElement>,
     layer: ImageOverlay,
-    mode: LayerInteraction["mode"]
+    mode: ImageLayerInteraction["mode"]
   ) {
     if (layer.locked) return
     if (event.pointerType === "mouse" && event.button !== 0) return
@@ -818,11 +830,7 @@ export function SlideshowStudio({
             x: clamp(start.x + deltaX, 0, 100 - start.width),
             y: clamp(start.y + deltaY, 0, 100 - start.height),
           }
-        : {
-            ...start,
-            width: clamp(start.width + deltaX, 8, 100 - start.x),
-            height: clamp(start.height + deltaY, 8, 100 - start.y),
-          }
+        : computeResizedRect(start, interaction.mode, deltaX, deltaY)
 
     updateImageLayer(interaction.layerId, { rect })
   }
@@ -1737,30 +1745,60 @@ export function SlideshowStudio({
                               rect: { x: 0, y: 0, width: 100, height: 100 },
                             })
                           }
-                          className="absolute -top-2 -left-2 grid size-5 place-items-center rounded-full border-2 border-white bg-[#4758c7] text-white shadow-sm"
+                          className="absolute -top-2 left-1/2 grid size-5 -translate-x-1/2 place-items-center rounded-full border-2 border-white bg-[#4758c7] text-white shadow-sm"
                         >
                           <Maximize2 className="size-2.5" />
                         </button>
-                        <button
-                          type="button"
-                          aria-label={`Resize ${layer.name}`}
-                          className="absolute -right-2 -bottom-2 size-4 cursor-nwse-resize rounded-full border-2 border-[#4758c7] bg-white shadow-sm"
-                          onPointerDown={(event) =>
-                            startImageLayerInteraction(event, layer, "resize")
-                          }
-                          onPointerMove={(event) => {
-                            event.stopPropagation()
-                            moveImageLayerInteraction(event)
-                          }}
-                          onPointerUp={(event) => {
-                            event.stopPropagation()
-                            finishImageLayerInteraction(event)
-                          }}
-                          onPointerCancel={(event) => {
-                            event.stopPropagation()
-                            finishImageLayerInteraction(event)
-                          }}
-                        />
+                        {(
+                          [
+                            {
+                              corner: "nw",
+                              position: "-top-2 -left-2",
+                              cursor: "cursor-nwse-resize",
+                            },
+                            {
+                              corner: "ne",
+                              position: "-top-2 -right-2",
+                              cursor: "cursor-nesw-resize",
+                            },
+                            {
+                              corner: "sw",
+                              position: "-bottom-2 -left-2",
+                              cursor: "cursor-nesw-resize",
+                            },
+                            {
+                              corner: "se",
+                              position: "-bottom-2 -right-2",
+                              cursor: "cursor-nwse-resize",
+                            },
+                          ] as const
+                        ).map(({ corner, position, cursor }) => (
+                          <button
+                            key={corner}
+                            type="button"
+                            aria-label={`Resize ${layer.name} from the ${corner} corner`}
+                            className={cn(
+                              "absolute size-4 rounded-full border-2 border-[#4758c7] bg-white shadow-sm",
+                              position,
+                              cursor
+                            )}
+                            onPointerDown={(event) =>
+                              startImageLayerInteraction(event, layer, corner)
+                            }
+                            onPointerMove={(event) => {
+                              event.stopPropagation()
+                              moveImageLayerInteraction(event)
+                            }}
+                            onPointerUp={(event) => {
+                              event.stopPropagation()
+                              finishImageLayerInteraction(event)
+                            }}
+                            onPointerCancel={(event) => {
+                              event.stopPropagation()
+                              finishImageLayerInteraction(event)
+                            }}
+                          />
+                        ))}
                       </>
                     )}
                   </div>
@@ -2927,6 +2965,74 @@ function getColorInputValue(value: string | null, fallback: string) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+const MIN_IMAGE_LAYER_SIZE = 8
+
+/**
+ * Resizes an image overlay's rect from any of its four corners, anchoring
+ * the opposite corner in place - e.g. dragging the top-left handle keeps
+ * the bottom-right corner fixed and grows/shrinks toward it.
+ */
+function computeResizedRect(
+  start: LayerRect,
+  corner: ImageResizeCorner,
+  deltaX: number,
+  deltaY: number
+): LayerRect {
+  if (corner === "se") {
+    return {
+      ...start,
+      width: clamp(start.width + deltaX, MIN_IMAGE_LAYER_SIZE, 100 - start.x),
+      height: clamp(start.height + deltaY, MIN_IMAGE_LAYER_SIZE, 100 - start.y),
+    }
+  }
+
+  if (corner === "ne") {
+    const height = clamp(
+      start.height - deltaY,
+      MIN_IMAGE_LAYER_SIZE,
+      start.y + start.height
+    )
+    return {
+      x: start.x,
+      y: start.y + start.height - height,
+      width: clamp(start.width + deltaX, MIN_IMAGE_LAYER_SIZE, 100 - start.x),
+      height,
+    }
+  }
+
+  if (corner === "sw") {
+    const width = clamp(
+      start.width - deltaX,
+      MIN_IMAGE_LAYER_SIZE,
+      start.x + start.width
+    )
+    return {
+      x: start.x + start.width - width,
+      y: start.y,
+      width,
+      height: clamp(start.height + deltaY, MIN_IMAGE_LAYER_SIZE, 100 - start.y),
+    }
+  }
+
+  // nw
+  const width = clamp(
+    start.width - deltaX,
+    MIN_IMAGE_LAYER_SIZE,
+    start.x + start.width
+  )
+  const height = clamp(
+    start.height - deltaY,
+    MIN_IMAGE_LAYER_SIZE,
+    start.y + start.height
+  )
+  return {
+    x: start.x + start.width - width,
+    y: start.y + start.height - height,
+    width,
+    height,
+  }
 }
 
 const MAX_UPLOADED_IMAGE_DIMENSION = 1440
