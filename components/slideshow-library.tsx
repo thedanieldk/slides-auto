@@ -311,6 +311,20 @@ export function SlideshowLibrary({
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => void addSlideshow()}
+                  aria-label="New blank slideshow"
+                  className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 text-black/40 transition hover:border-[#4758c7] hover:text-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
+                >
+                  <Plus className="size-6" />
+                </button>
+                <p className="mt-2 truncate text-sm font-medium text-black/70">
+                  Blank slideshow
+                </p>
+              </div>
+
               {projects.map((project) => {
                 const theme =
                   slideshowThemes.find((t) => t.id === project.themeId) ??
@@ -373,15 +387,6 @@ export function SlideshowLibrary({
                   </Link>
                 )
               })}
-
-              <button
-                type="button"
-                onClick={() => void addSlideshow()}
-                aria-label="New slideshow"
-                className="flex aspect-[9/16] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/20 text-black/40 transition hover:border-[#4758c7] hover:text-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7]"
-              >
-                <Plus className="size-6" />
-              </button>
             </div>
           </div>
 
