@@ -115,6 +115,12 @@ export type NotificationOverlay = {
   style?: NotificationStyle
   appName: string
   appIconDataUrl: string | null
+  /**
+   * The small app-badge icon shown over the avatar in "imessage" style,
+   * e.g. the Messages app icon. Unused in "generic" style. Falls back to a
+   * built-in default icon when unset.
+   */
+  badgeIconDataUrl: string | null
   message: string
   timeLabel: string
 }
@@ -643,6 +649,7 @@ export function createNotificationOverlay(): NotificationOverlay {
     locked: false,
     style: "generic",
     appName: "App",
+    badgeIconDataUrl: null,
     appIconDataUrl: null,
     message: "Your notification message goes here",
     timeLabel: "now",

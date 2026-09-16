@@ -200,6 +200,7 @@ export function SlideshowStudio({
     null
   )
   const notificationIconInputRef = useRef<HTMLInputElement>(null)
+  const notificationBadgeIconInputRef = useRef<HTMLInputElement>(null)
   const copiedLayerRef = useRef<TextLayer | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
   const isFirstRenderRef = useRef(true)
@@ -323,6 +324,8 @@ export function SlideshowStudio({
     (activeSlide.notificationLayers ?? []).find(
       (layer) => layer.id === selectedNotificationLayerId
     ) ?? null
+  const isSelectedNotificationIMessage =
+    (selectedNotificationLayer?.style ?? "generic") === "imessage"
   const selectedLayer =
     activeSlide.textLayers.find((layer) => layer.id === selectedLayerId) ??
     hookLayer ??
@@ -585,6 +588,25 @@ export function SlideshowStudio({
     resizeImageToDataUrl(file)
       .then(({ dataUrl }) => {
         updateNotificationLayer(layerId, { appIconDataUrl: dataUrl })
+      })
+      .catch(() => setNotice("Could not process this image. Try again."))
+  }
+
+  function handleNotificationBadgeIconUpload(file: File | undefined) {
+    if (!file || !selectedNotificationLayer) return
+    if (!file.type.startsWith("image/")) {
+      setNotice("Choose an image file such as PNG, JPEG, or WebP.")
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setNotice("Choose an image smaller than 15 MB.")
+      return
+    }
+
+    const layerId = selectedNotificationLayer.id
+    resizeImageToDataUrl(file)
+      .then(({ dataUrl }) => {
+        updateNotificationLayer(layerId, { badgeIconDataUrl: dataUrl })
       })
       .catch(() => setNotice("Could not process this image. Try again."))
   }
@@ -2501,58 +2523,91 @@ export function SlideshowStudio({
                     event.target.value = ""
                   }}
                 />
+                <input
+                  ref={notificationBadgeIconInputRef}
+                  className="sr-only"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(event) => {
+                    handleNotificationBadgeIconUpload(event.target.files?.[0])
+                    event.target.value = ""
+                  }}
+                />
                 <div className="flex items-center gap-2.5">
                   <div className="relative shrink-0">
-                    <button
-                      type="button"
-                      aria-label="Change app icon"
-                      title="Change app icon"
-                      onClick={() => notificationIconInputRef.current?.click()}
-                      className="grid size-10 place-items-center overflow-hidden border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40 transition hover:border-black/25"
-                      style={{
-                        borderRadius:
-                          (selectedNotificationLayer.style ?? "generic") ===
-                          "imessage"
-                            ? "50%"
-                            : "0.5rem",
-                      }}
-                    >
-                      {selectedNotificationLayer.appIconDataUrl ? (
-                        <img
-                          src={selectedNotificationLayer.appIconDataUrl}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        (selectedNotificationLayer.appName || "A")
-                          .slice(0, 1)
-                          .toUpperCase()
-                      )}
-                    </button>
-                    {(selectedNotificationLayer.style ?? "generic") ===
-                      "imessage" && (
+                    {isSelectedNotificationIMessage ? (
+                      // No upload here - the avatar always shows the
+                      // contact's initial in iMessage style, matching a
+                      // real notification when there's no saved photo. The
+                      // badge below is what's actually uploadable.
                       <div
-                        className="pointer-events-none absolute grid place-items-center rounded-full"
+                        title="Automatically shows the first letter of the contact name"
+                        className="grid size-10 place-items-center rounded-full border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40"
+                      >
+                        {(selectedNotificationLayer.appName || "A")
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label="Change app icon"
+                        title="Change app icon"
+                        onClick={() =>
+                          notificationIconInputRef.current?.click()
+                        }
+                        className="grid size-10 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40 transition hover:border-black/25"
+                      >
+                        {selectedNotificationLayer.appIconDataUrl ? (
+                          <img
+                            src={selectedNotificationLayer.appIconDataUrl}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          (selectedNotificationLayer.appName || "A")
+                            .slice(0, 1)
+                            .toUpperCase()
+                        )}
+                      </button>
+                    )}
+                    {isSelectedNotificationIMessage && (
+                      <button
+                        type="button"
+                        aria-label="Change iMessage badge icon"
+                        title="Change iMessage badge icon"
+                        onClick={() =>
+                          notificationBadgeIconInputRef.current?.click()
+                        }
+                        className="absolute grid place-items-center overflow-hidden rounded-full border-[1.5px] border-white transition hover:brightness-95"
                         style={{
                           bottom: -2,
                           right: -2,
                           width: 16,
                           height: 16,
-                          background: "#3bd158",
-                          border: "1.5px solid white",
+                          background: selectedNotificationLayer.badgeIconDataUrl
+                            ? undefined
+                            : "#3bd158",
                         }}
                       >
-                        <MessageCircle
-                          fill="white"
-                          className="size-2.5 text-white"
-                        />
-                      </div>
+                        {selectedNotificationLayer.badgeIconDataUrl ? (
+                          <img
+                            src={selectedNotificationLayer.badgeIconDataUrl}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <MessageCircle
+                            fill="white"
+                            className="size-2.5 text-white"
+                          />
+                        )}
+                      </button>
                     )}
                   </div>
                   <label className="block min-w-0 flex-1">
                     <span className="mb-1 block text-[10px] font-semibold text-black/50">
-                      {(selectedNotificationLayer.style ?? "generic") ===
-                      "imessage"
+                      {isSelectedNotificationIMessage
                         ? "Contact name"
                         : "App or sender"}
                     </span>
@@ -2912,7 +2967,11 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
           className="relative shrink-0"
           style={{ width: "7.6cqw", height: "7.6cqw" }}
         >
-          {layer.appIconDataUrl ? (
+          {/* The avatar is always the grey initial in iMessage style - only
+              Generic supports a custom photo here. iMessage's own upload
+              (see the badge below) replaces the small app-badge icon
+              instead, matching a real iMessage notification. */}
+          {!isIMessage && layer.appIconDataUrl ? (
             <img
               src={layer.appIconDataUrl}
               alt=""
@@ -2929,21 +2988,29 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
           )}
           {isIMessage && (
             <div
-              className="absolute grid place-items-center"
+              className="absolute grid place-items-center overflow-hidden"
               style={{
                 bottom: "-0.6cqw",
                 right: "-0.6cqw",
                 width: "3.8cqw",
                 height: "3.8cqw",
                 borderRadius: "50%",
-                background: "#3bd158",
+                background: layer.badgeIconDataUrl ? undefined : "#3bd158",
                 border: "0.35cqw solid rgba(0,0,0,.55)",
               }}
             >
-              <MessageCircle
-                fill="white"
-                style={{ width: "2.1cqw", height: "2.1cqw", color: "white" }}
-              />
+              {layer.badgeIconDataUrl ? (
+                <img
+                  src={layer.badgeIconDataUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                <MessageCircle
+                  fill="white"
+                  style={{ width: "2.1cqw", height: "2.1cqw", color: "white" }}
+                />
+              )}
             </div>
           )}
         </div>
