@@ -2981,7 +2981,14 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
           ) : (
             <div
               className="grid size-full place-items-center bg-white/20 font-bold"
-              style={{ borderRadius: avatarRadius, fontSize: "3.2cqw" }}
+              style={{
+                borderRadius: avatarRadius,
+                fontSize: "3.2cqw",
+                // A real iMessage default avatar is a solid, opaque grey -
+                // bg-white/20 lets the blurred slide behind it tint through,
+                // which doesn't match.
+                background: isIMessage ? "#8e8e93" : undefined,
+              }}
             >
               {(layer.appName || "A").slice(0, 1).toUpperCase()}
             </div>
