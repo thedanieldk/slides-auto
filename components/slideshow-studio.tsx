@@ -269,7 +269,10 @@ export function SlideshowStudio({
 
   useEffect(() => {
     const editor = inlineEditorRef.current
-    if (!editingLayerId || !editor) return
+    if (!editingLayerId || !editor) {
+      pendingCaretPointRef.current = null
+      return
+    }
 
     editor.focus()
     const selection = window.getSelection()
@@ -1750,6 +1753,14 @@ export function SlideshowStudio({
                     style={getTextLayerStyle(layer, activeTheme)}
                     onDoubleClick={(event) => {
                       event.stopPropagation()
+                      // Double-clicking a word to select it while already
+                      // editing reaches here too - that's not a new edit
+                      // session, so it must not touch the pending point:
+                      // editingLayerId won't change, so nothing would ever
+                      // consume/clear it, leaving stale coordinates to be
+                      // wrongly applied whenever a *future* edit session
+                      // (e.g. a freshly added text box) has none of its own.
+                      if (isEditing) return
                       pendingCaretPointRef.current = {
                         x: event.clientX,
                         y: event.clientY,
