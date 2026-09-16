@@ -891,6 +891,16 @@ export function SlideshowStudio({
     setEditingLayerId(null)
   }
 
+  /** Removes a <strong>/<b> wrapper, keeping its children in place. */
+  function unwrapBoldElement(element: Element) {
+    const parent = element.parentNode
+    if (!parent) return
+    while (element.firstChild) {
+      parent.insertBefore(element.firstChild, element)
+    }
+    parent.removeChild(element)
+  }
+
   /**
    * Explicit bold toggle, bound to Cmd/Ctrl+B while editing, instead of
    * relying on the browser's native execCommand("bold"). execCommand
@@ -915,22 +925,59 @@ export function SlideshowStudio({
     const strongAncestor = anchor?.closest("strong, b")
 
     if (strongAncestor) {
-      const parent = strongAncestor.parentNode
-      if (!parent) return
-      while (strongAncestor.firstChild) {
-        parent.insertBefore(strongAncestor.firstChild, strongAncestor)
-      }
-      parent.removeChild(strongAncestor)
+      unwrapBoldElement(strongAncestor)
       return
+    }
+
+    // The selection isn't fully inside one bold span, but it can still
+    // overlap one at either edge (e.g. extending a bold word into the
+    // plain text right next to it). Unwrap those first: leaving them in
+    // place let surroundContents silently nest a new <strong> inside the
+    // old one instead of throwing, which corrupted the ** marker
+    // serialization into unparseable runs of asterisks.
+    const editableRoot =
+      anchor?.closest<HTMLElement>('[contenteditable="true"]') ?? anchor
+    const overlapping = editableRoot
+      ? Array.from(editableRoot.querySelectorAll("strong, b")).filter(
+          (element) => range.intersectsNode(element)
+        )
+      : []
+
+    let workingRange = range
+    if (overlapping.length > 0) {
+      // Unwrapping can lead the browser to merge now-adjacent text nodes,
+      // which silently invalidates any Range boundary point that was
+      // pointing into whichever node got merged away - the range would
+      // still "work" afterwards, just against the wrong text. Bookmarking
+      // both edges with temporary marker elements (which never merge,
+      // unlike text nodes) survives that and lets the range be rebuilt
+      // from their positions afterwards.
+      const startMarker = document.createElement("span")
+      const endMarker = document.createElement("span")
+      const startRange = range.cloneRange()
+      startRange.collapse(true)
+      startRange.insertNode(startMarker)
+      const endRange = range.cloneRange()
+      endRange.collapse(false)
+      endRange.insertNode(endMarker)
+
+      overlapping.forEach(unwrapBoldElement)
+
+      const rebuilt = document.createRange()
+      rebuilt.setStartAfter(startMarker)
+      rebuilt.setEndBefore(endMarker)
+      startMarker.remove()
+      endMarker.remove()
+      workingRange = rebuilt
     }
 
     const strong = document.createElement("strong")
     try {
-      range.surroundContents(strong)
+      workingRange.surroundContents(strong)
     } catch {
-      const fragment = range.extractContents()
+      const fragment = workingRange.extractContents()
       strong.appendChild(fragment)
-      range.insertNode(strong)
+      workingRange.insertNode(strong)
     }
 
     // Collapse to just after the bolded text rather than leaving it
