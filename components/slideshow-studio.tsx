@@ -202,6 +202,7 @@ export function SlideshowStudio({
   const copiedLayerRef = useRef<TextLayer | null>(null)
   const lastTapRef = useRef<{ layerId: string; timestamp: number } | null>(null)
   const isFirstRenderRef = useRef(true)
+  const pendingCaretPointRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -272,10 +273,28 @@ export function SlideshowStudio({
 
     editor.focus()
     const selection = window.getSelection()
+    if (!selection) return
+
+    // Entering edit mode remounts this span (see the `key` below), which
+    // destroys whatever native cursor placement the click that triggered
+    // this just made. Restoring it from the click's screen coordinates -
+    // instead of always selecting everything - is what makes double-
+    // clicking at a specific spot actually put the cursor there instead of
+    // it jumping to the very front every time.
+    const point = pendingCaretPointRef.current
+    pendingCaretPointRef.current = null
+    const clickRange = point && getCaretRangeFromPoint(point.x, point.y, editor)
+
+    if (clickRange) {
+      selection.removeAllRanges()
+      selection.addRange(clickRange)
+      return
+    }
+
     const range = document.createRange()
     range.selectNodeContents(editor)
-    selection?.removeAllRanges()
-    selection?.addRange(range)
+    selection.removeAllRanges()
+    selection.addRange(range)
   }, [editingLayerId])
 
   const activeSlide = useMemo(
@@ -783,6 +802,7 @@ export function SlideshowStudio({
     const now = event.timeStamp
     const lastTap = lastTapRef.current
     if (lastTap?.layerId === layer.id && now - lastTap.timestamp < 350) {
+      pendingCaretPointRef.current = { x: event.clientX, y: event.clientY }
       setEditingLayerId(layer.id)
       lastTapRef.current = null
       return
@@ -1730,6 +1750,10 @@ export function SlideshowStudio({
                     style={getTextLayerStyle(layer, activeTheme)}
                     onDoubleClick={(event) => {
                       event.stopPropagation()
+                      pendingCaretPointRef.current = {
+                        x: event.clientX,
+                        y: event.clientY,
+                      }
                       startInlineEditing(layer)
                     }}
                     onPointerDown={(event) =>
@@ -3130,6 +3154,43 @@ function getColorInputValue(value: string | null, fallback: string) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+/**
+ * Resolves a screen point to a collapsed selection range, so a double-click
+ * that just triggered a remount (see the useEffect above) can put the
+ * cursor back where the click actually landed instead of losing that
+ * position. Returns null if the point doesn't land inside `root` (or the
+ * browser can't resolve it), so the caller can fall back to selecting all.
+ */
+function getCaretRangeFromPoint(
+  x: number,
+  y: number,
+  root: HTMLElement
+): Range | null {
+  type LegacyCaretDocument = Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+    caretPositionFromPoint?: (
+      x: number,
+      y: number
+    ) => { offsetNode: Node; offset: number } | null
+  }
+  const doc = root.ownerDocument as LegacyCaretDocument
+
+  let range: Range | null = null
+  if (doc.caretRangeFromPoint) {
+    range = doc.caretRangeFromPoint(x, y)
+  } else if (doc.caretPositionFromPoint) {
+    const position = doc.caretPositionFromPoint(x, y)
+    if (position) {
+      range = document.createRange()
+      range.setStart(position.offsetNode, position.offset)
+      range.collapse(true)
+    }
+  }
+
+  if (!range || !root.contains(range.startContainer)) return null
+  return range
 }
 
 function getContentEditableCaretOffset(root: HTMLElement): number | null {
