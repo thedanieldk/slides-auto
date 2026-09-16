@@ -1,6 +1,10 @@
 export type RichTextSegment = { text: string; bold: boolean }
 
-const BOLD_PATTERN = /\*\*(.+?)\*\*/g
+// [\s\S] (not ".") is required: bolding text and then pressing Enter/
+// Shift+Enter mid-selection can leave a newline inside the same **...**
+// span, and "." never matches "\n" - the pattern would then fail to match
+// that span at all, leaking the literal "**" markers into the visible text.
+const BOLD_PATTERN = /\*\*([\s\S]+?)\*\*/g
 
 // A literal "*" typed by the user is stored as "\*" (see serializeEditableNode)
 // so it can never be mistaken for one of our own "**bold**" delimiters. Before
