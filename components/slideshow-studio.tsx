@@ -16,6 +16,7 @@ import {
   Layers3,
   LoaderCircle,
   Maximize2,
+  MessageCircle,
   Plus,
   RotateCcw,
   Save,
@@ -2458,6 +2459,38 @@ export function SlideshowStudio({
                   Selected notification
                 </legend>
 
+                <div className="mb-3 grid grid-cols-2 rounded-xl border border-black/10 bg-white p-1 text-[11px] font-medium">
+                  {(
+                    [
+                      ["generic", "Generic"],
+                      ["imessage", "iMessage"],
+                    ] as const
+                  ).map(([style, label]) => (
+                    <button
+                      key={style}
+                      type="button"
+                      aria-pressed={
+                        (selectedNotificationLayer.style ?? "generic") ===
+                        style
+                      }
+                      onClick={() =>
+                        updateNotificationLayer(selectedNotificationLayer.id, {
+                          style,
+                        })
+                      }
+                      className={cn(
+                        "min-h-8 rounded-lg px-1 transition focus-visible:outline-2 focus-visible:outline-[#4758c7]",
+                        (selectedNotificationLayer.style ?? "generic") ===
+                          style
+                          ? "bg-[#eef0ff] text-[#4758c7]"
+                          : "text-black/45 hover:bg-black/5"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 <input
                   ref={notificationIconInputRef}
                   className="sr-only"
@@ -2830,6 +2863,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function NotificationCard({ layer }: { layer: NotificationOverlay }) {
+  const isIMessage = layer.style === "imessage"
+  const avatarRadius = isIMessage ? "50%" : "1.8cqw"
+
   return (
     <div
       className="text-white backdrop-blur-xl"
@@ -2841,30 +2877,45 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
       }}
     >
       <div className="flex items-center" style={{ gap: "2.4cqw" }}>
-        {layer.appIconDataUrl ? (
-          <img
-            src={layer.appIconDataUrl}
-            alt=""
-            className="shrink-0 object-cover"
-            style={{
-              width: "7.6cqw",
-              height: "7.6cqw",
-              borderRadius: "1.8cqw",
-            }}
-          />
-        ) : (
-          <div
-            className="grid shrink-0 place-items-center bg-white/20 font-bold"
-            style={{
-              width: "7.6cqw",
-              height: "7.6cqw",
-              borderRadius: "1.8cqw",
-              fontSize: "3.2cqw",
-            }}
-          >
-            {(layer.appName || "A").slice(0, 1).toUpperCase()}
-          </div>
-        )}
+        <div
+          className="relative shrink-0"
+          style={{ width: "7.6cqw", height: "7.6cqw" }}
+        >
+          {layer.appIconDataUrl ? (
+            <img
+              src={layer.appIconDataUrl}
+              alt=""
+              className="size-full object-cover"
+              style={{ borderRadius: avatarRadius }}
+            />
+          ) : (
+            <div
+              className="grid size-full place-items-center bg-white/20 font-bold"
+              style={{ borderRadius: avatarRadius, fontSize: "3.2cqw" }}
+            >
+              {(layer.appName || "A").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          {isIMessage && (
+            <div
+              className="absolute grid place-items-center"
+              style={{
+                bottom: "-0.6cqw",
+                right: "-0.6cqw",
+                width: "3.8cqw",
+                height: "3.8cqw",
+                borderRadius: "50%",
+                background: "#3bd158",
+                border: "0.35cqw solid rgba(0,0,0,.55)",
+              }}
+            >
+              <MessageCircle
+                fill="white"
+                style={{ width: "2.1cqw", height: "2.1cqw", color: "white" }}
+              />
+            </div>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center" style={{ gap: "2cqw" }}>
             <span

@@ -102,6 +102,8 @@ export type ImageOverlay = {
   naturalAspect: number
 }
 
+export type NotificationStyle = "generic" | "imessage"
+
 /** A fake phone notification card placed on top of the slide. Height always hugs its content. */
 export type NotificationOverlay = {
   id: string
@@ -109,6 +111,8 @@ export type NotificationOverlay = {
   y: number
   width: number
   locked: boolean
+  /** Older saved slides predate this field - treat missing/undefined as "generic". */
+  style?: NotificationStyle
   appName: string
   appIconDataUrl: string | null
   message: string
@@ -637,6 +641,7 @@ export function createNotificationOverlay(): NotificationOverlay {
     y: 10,
     width: 84,
     locked: false,
+    style: "generic",
     appName: "App",
     appIconDataUrl: null,
     message: "Your notification message goes here",
