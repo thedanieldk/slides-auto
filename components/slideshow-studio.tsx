@@ -252,6 +252,8 @@ export function SlideshowStudio({
     }
   }, [project])
 
+  useEffect(() => installCursorJumpDiagnostics(), [])
+
   async function saveNow() {
     setSaveState("saving")
     try {
@@ -3102,6 +3104,107 @@ function getColorInputValue(value: string | null, fallback: string) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+function getContentEditableCaretOffset(root: HTMLElement): number | null {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+    return null
+  }
+  const range = selection.getRangeAt(0)
+  if (!root.contains(range.startContainer)) return null
+
+  const measuring = document.createRange()
+  measuring.selectNodeContents(root)
+  measuring.setEnd(range.startContainer, range.startOffset)
+  return measuring.toString().length
+}
+
+/**
+ * TEMPORARY diagnostic for the "cursor jumps backward while typing" report -
+ * two prior fix attempts (deferring the autosave badge's state update, and a
+ * synthetic stress test of the render pattern) failed to reproduce it, so
+ * this logs full context to the console the moment a real jump happens in
+ * someone's actual usage instead of shipping another unverified guess.
+ * Remove once the root cause is confirmed and fixed.
+ */
+function installCursorJumpDiagnostics(): () => void {
+  let lastElement: Element | null = null
+  let lastOffset: number | null = null
+  let lastAction = "none"
+  let lastActionAt = 0
+
+  function noteAction(action: string) {
+    lastAction = action
+    lastActionAt = performance.now()
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    noteAction(`key:${event.key}`)
+  }
+
+  function handlePointerDown() {
+    noteAction("pointerdown")
+  }
+
+  function handleSelectionChange() {
+    const active = document.activeElement
+    const isTextarea = active instanceof HTMLTextAreaElement
+    const isEditableSpan =
+      active instanceof HTMLElement && active.isContentEditable
+    if (!active || (!isTextarea && !isEditableSpan)) {
+      lastElement = null
+      lastOffset = null
+      return
+    }
+
+    const offset = isTextarea
+      ? active.selectionStart
+      : getContentEditableCaretOffset(active as HTMLElement)
+    if (offset === null) return
+
+    if (active === lastElement && lastOffset !== null && offset < lastOffset - 1) {
+      const msSinceAction = performance.now() - lastActionAt
+      // Any recent keydown or pointerdown - regardless of which key - means
+      // the user themselves plausibly moved the caret (arrow keys, Home,
+      // backspace-over-selection, clicking mid-text, etc.). What this is
+      // actually hunting for is a jump with NO correlating input at all,
+      // which is what "the cursor just moves on its own" would look like.
+      const hadRecentUserAction = msSinceAction < 300
+
+      if (!hadRecentUserAction) {
+        const layerId =
+          active instanceof HTMLElement
+            ? (active.closest("[data-layer-id]") as HTMLElement | null)?.dataset
+                .layerId
+            : undefined
+        console.warn("[cursor-jump] caret moved backward unexpectedly", {
+          element: active,
+          layerId,
+          from: lastOffset,
+          to: offset,
+          lastAction,
+          msSinceAction: Math.round(msSinceAction),
+          textLength: isTextarea
+            ? (active as HTMLTextAreaElement).value.length
+            : active.textContent?.length,
+        })
+        console.trace("[cursor-jump] stack at detection")
+      }
+    }
+
+    lastElement = active
+    lastOffset = offset
+  }
+
+  document.addEventListener("selectionchange", handleSelectionChange)
+  window.addEventListener("keydown", handleKeyDown, true)
+  window.addEventListener("pointerdown", handlePointerDown, true)
+  return () => {
+    document.removeEventListener("selectionchange", handleSelectionChange)
+    window.removeEventListener("keydown", handleKeyDown, true)
+    window.removeEventListener("pointerdown", handlePointerDown, true)
+  }
 }
 
 const MIN_IMAGE_LAYER_SIZE = 8
