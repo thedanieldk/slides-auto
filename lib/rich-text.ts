@@ -2,21 +2,48 @@ export type RichTextSegment = { text: string; bold: boolean }
 
 const BOLD_PATTERN = /\*\*(.+?)\*\*/g
 
+// A literal "*" typed by the user is stored as "\*" (see serializeEditableNode)
+// so it can never be mistaken for one of our own "**bold**" delimiters. Before
+// matching bold spans, escaped asterisks are swapped for this placeholder - a
+// Unicode Private Use Area character no keyboard or font produces, so it can
+// never collide with real user text - and it never contains "*" itself, so
+// the regex above only ever sees real delimiters. Every placeholder is
+// restored to a literal "*" afterwards in the resulting segment text.
+const ESCAPED_ASTERISK_PLACEHOLDER = ""
+
+function hideEscapedAsterisks(value: string): string {
+  return value.replace(/\\\*/g, ESCAPED_ASTERISK_PLACEHOLDER)
+}
+
+function restoreEscapedAsterisks(value: string): string {
+  return value.split(ESCAPED_ASTERISK_PLACEHOLDER).join("*")
+}
+
 export function parseRichText(value: string): RichTextSegment[] {
+  const hidden = hideEscapedAsterisks(value)
   const segments: RichTextSegment[] = []
   let lastIndex = 0
   let match: RegExpExecArray | null
 
   BOLD_PATTERN.lastIndex = 0
-  while ((match = BOLD_PATTERN.exec(value))) {
+  while ((match = BOLD_PATTERN.exec(hidden))) {
     if (match.index > lastIndex) {
-      segments.push({ text: value.slice(lastIndex, match.index), bold: false })
+      segments.push({
+        text: restoreEscapedAsterisks(hidden.slice(lastIndex, match.index)),
+        bold: false,
+      })
     }
-    segments.push({ text: match[1]!, bold: true })
+    segments.push({
+      text: restoreEscapedAsterisks(match[1]!),
+      bold: true,
+    })
     lastIndex = BOLD_PATTERN.lastIndex
   }
-  if (lastIndex < value.length) {
-    segments.push({ text: value.slice(lastIndex), bold: false })
+  if (lastIndex < hidden.length) {
+    segments.push({
+      text: restoreEscapedAsterisks(hidden.slice(lastIndex)),
+      bold: false,
+    })
   }
   return segments
 }
@@ -60,7 +87,12 @@ export function serializeEditableNode(root: Node): string {
 
   for (const node of Array.from(root.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
-      result += node.textContent ?? ""
+      // A literal "*" the user typed (e.g. styling a quote as **like this**
+      // themselves) would otherwise be indistinguishable from our own bold
+      // delimiter once this text sits inside a real <strong> from toggling
+      // bold - escaping it here means parseRichText can always tell "**"
+      // that means bold apart from "**" that's just part of the text.
+      result += (node.textContent ?? "").replace(/\*/g, "\\*")
       continue
     }
     if (node.nodeType !== Node.ELEMENT_NODE) continue
