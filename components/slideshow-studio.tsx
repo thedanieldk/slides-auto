@@ -2996,7 +2996,6 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
                 height: "3.8cqw",
                 borderRadius: "50%",
                 background: layer.badgeIconDataUrl ? undefined : "#3bd158",
-                border: "0.35cqw solid rgba(0,0,0,.55)",
               }}
             >
               {layer.badgeIconDataUrl ? (
