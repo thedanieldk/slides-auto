@@ -2502,28 +2502,59 @@ export function SlideshowStudio({
                   }}
                 />
                 <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    aria-label="Change app icon"
-                    title="Change app icon"
-                    onClick={() => notificationIconInputRef.current?.click()}
-                    className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40 transition hover:border-black/25"
-                  >
-                    {selectedNotificationLayer.appIconDataUrl ? (
-                      <img
-                        src={selectedNotificationLayer.appIconDataUrl}
-                        alt=""
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      (selectedNotificationLayer.appName || "A")
-                        .slice(0, 1)
-                        .toUpperCase()
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      aria-label="Change app icon"
+                      title="Change app icon"
+                      onClick={() => notificationIconInputRef.current?.click()}
+                      className="grid size-10 place-items-center overflow-hidden border border-black/10 bg-[#f6f5f2] text-sm font-bold text-black/40 transition hover:border-black/25"
+                      style={{
+                        borderRadius:
+                          (selectedNotificationLayer.style ?? "generic") ===
+                          "imessage"
+                            ? "50%"
+                            : "0.5rem",
+                      }}
+                    >
+                      {selectedNotificationLayer.appIconDataUrl ? (
+                        <img
+                          src={selectedNotificationLayer.appIconDataUrl}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        (selectedNotificationLayer.appName || "A")
+                          .slice(0, 1)
+                          .toUpperCase()
+                      )}
+                    </button>
+                    {(selectedNotificationLayer.style ?? "generic") ===
+                      "imessage" && (
+                      <div
+                        className="pointer-events-none absolute grid place-items-center rounded-full"
+                        style={{
+                          bottom: -2,
+                          right: -2,
+                          width: 16,
+                          height: 16,
+                          background: "#3bd158",
+                          border: "1.5px solid white",
+                        }}
+                      >
+                        <MessageCircle
+                          fill="white"
+                          className="size-2.5 text-white"
+                        />
+                      </div>
                     )}
-                  </button>
+                  </div>
                   <label className="block min-w-0 flex-1">
                     <span className="mb-1 block text-[10px] font-semibold text-black/50">
-                      App or sender
+                      {(selectedNotificationLayer.style ?? "generic") ===
+                      "imessage"
+                        ? "Contact name"
+                        : "App or sender"}
                     </span>
                     <input
                       type="text"
