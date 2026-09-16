@@ -2965,7 +2965,10 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
       <div className="flex items-center" style={{ gap: "2.4cqw" }}>
         <div
           className="relative shrink-0"
-          style={{ width: "7.6cqw", height: "7.6cqw" }}
+          style={{
+            width: isIMessage ? "9.1cqw" : "7.6cqw",
+            height: isIMessage ? "9.1cqw" : "7.6cqw",
+          }}
         >
           {/* The avatar is always the grey initial in iMessage style - only
               Generic supports a custom photo here. iMessage's own upload
@@ -2983,7 +2986,7 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
               className="grid size-full place-items-center bg-white/20 font-bold"
               style={{
                 borderRadius: avatarRadius,
-                fontSize: "3.2cqw",
+                fontSize: isIMessage ? "3.8cqw" : "3.2cqw",
                 // A real iMessage default avatar is a solid, opaque grey -
                 // bg-white/20 lets the blurred slide behind it tint through,
                 // which doesn't match.
@@ -2997,10 +3000,10 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
             <div
               className="absolute grid place-items-center overflow-hidden"
               style={{
-                bottom: "-0.6cqw",
-                right: "-0.6cqw",
-                width: "3.8cqw",
-                height: "3.8cqw",
+                bottom: "-0.7cqw",
+                right: "-0.7cqw",
+                width: "4.5cqw",
+                height: "4.5cqw",
                 borderRadius: "50%",
                 background: layer.badgeIconDataUrl ? undefined : "#3bd158",
               }}
@@ -3014,7 +3017,7 @@ function NotificationCard({ layer }: { layer: NotificationOverlay }) {
               ) : (
                 <MessageCircle
                   fill="white"
-                  style={{ width: "2.1cqw", height: "2.1cqw", color: "white" }}
+                  style={{ width: "2.5cqw", height: "2.5cqw", color: "white" }}
                 />
               )}
             </div>
