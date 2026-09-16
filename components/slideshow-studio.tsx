@@ -1217,14 +1217,19 @@ export function SlideshowStudio({
     }
   }
 
-  function addContentImageOverlay(image: ProductContentImage) {
-    addImageOverlay({
-      name: image.name,
-      dataUrl: image.dataUrl,
-      rect: { x: 35, y: 40, width: 30, height: 20 },
-      naturalAspect: 1,
-    })
-    setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
+  async function addContentImageOverlay(image: ProductContentImage) {
+    try {
+      const { width, height } = await getImageDimensions(image.dataUrl)
+      addImageOverlay({
+        name: image.name,
+        dataUrl: image.dataUrl,
+        rect: computeFitRect(width, height),
+        naturalAspect: width / height,
+      })
+      setNotice(`${image.name} added to slide ${activeIndex + 1}.`)
+    } catch {
+      setNotice("Could not add this image. Try again.")
+    }
   }
 
   async function handleImageOverlayUpload(file: File | undefined) {
@@ -1660,20 +1665,41 @@ export function SlideshowStudio({
                   ((event.clientX - canvasRect.left) / canvasRect.width) * 100
                 const centerY =
                   ((event.clientY - canvasRect.top) / canvasRect.height) * 100
-                const width = 30
-                const height = 20
+                const name = image.name
+                const dataUrl = image.dataUrl
 
-                addImageOverlay({
-                  name: image.name,
-                  dataUrl: image.dataUrl,
-                  rect: {
-                    x: clamp(centerX - width / 2, 0, 100 - width),
-                    y: clamp(centerY - height / 2, 0, 100 - height),
-                    width,
-                    height,
-                  },
-                  naturalAspect: 1,
-                })
+                void getImageDimensions(dataUrl)
+                  .then(({ width, height }) => {
+                    const percentAspect =
+                      width / height / CANVAS_ASPECT_RATIO
+                    const fitted = computeAspectFitRect(
+                      percentAspect,
+                      30,
+                      MIN_IMAGE_LAYER_SIZE
+                    )
+                    addImageOverlay({
+                      name,
+                      dataUrl,
+                      rect: {
+                        x: clamp(
+                          centerX - fitted.width / 2,
+                          0,
+                          100 - fitted.width
+                        ),
+                        y: clamp(
+                          centerY - fitted.height / 2,
+                          0,
+                          100 - fitted.height
+                        ),
+                        width: fitted.width,
+                        height: fitted.height,
+                      },
+                      naturalAspect: width / height,
+                    })
+                  })
+                  .catch(() => {
+                    setNotice("Could not add this image. Try again.")
+                  })
               }}
             >
               {activeSlide.image && (
@@ -2619,7 +2645,7 @@ export function SlideshowStudio({
                               )
                               event.dataTransfer.effectAllowed = "copy"
                             }}
-                            onClick={() => addContentImageOverlay(image)}
+                            onClick={() => void addContentImageOverlay(image)}
                             className="aspect-square w-full cursor-grab overflow-hidden rounded-lg bg-cover bg-center ring-1 ring-black/10 transition hover:ring-[#4758c7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4758c7] active:cursor-grabbing"
                             style={{
                               backgroundImage: `url(${JSON.stringify(image.dataUrl)})`,
@@ -3322,6 +3348,24 @@ function resizeImageToDataUrl(file: File): Promise<ResizedImage> {
 }
 
 /**
+ * A product's content images only ever store {id, name, dataUrl} - unlike a
+ * fresh upload, there's no width/height already in hand - so this measures
+ * one on demand to build a rect that matches its real aspect ratio instead
+ * of guessing, which is what let a wide image get cropped down to a square.
+ */
+function getImageDimensions(
+  dataUrl: string
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () =>
+      resolve({ width: image.naturalWidth, height: image.naturalHeight })
+    image.onerror = () => reject(new Error("Could not read this image."))
+    image.src = dataUrl
+  })
+}
+
+/**
  * Builds a rect matching a given percent-space aspect ratio, scaled to fit
  * within a maxSpan x maxSpan box and centered. Shared by computeFitRect
  * (the default box for a freshly added overlay) and computeMaxFitRect (the
@@ -3339,8 +3383,15 @@ function computeAspectFitRect(
     height = maxSpan
     width = maxSpan * percentAspect
   }
-  width = clamp(width, minSpan, maxSpan)
-  height = clamp(height, minSpan, maxSpan)
+
+  // Scale both dimensions together, never independently - clamping just one
+  // to minSpan (e.g. a very wide banner-shaped image) would distort the
+  // aspect ratio and crop the image, breaking the "never crop" guarantee
+  // this function exists to provide. Overshooting maxSpan here is fine:
+  // resizing already tolerates layers far larger than the canvas.
+  const scaleToMinSpan = Math.max(1, minSpan / width, minSpan / height)
+  width *= scaleToMinSpan
+  height *= scaleToMinSpan
 
   return {
     x: (100 - width) / 2,
