@@ -1803,11 +1803,15 @@ export function SlideshowStudio({
                           )
                         }
                         onKeyDown={(event) => {
+                          // Escape used to also discard whatever was typed
+                          // and restore the pre-edit text before blurring -
+                          // silently, with no confirmation. Reaching for
+                          // Escape to just get out of a text field is a
+                          // near-universal reflex, so that made it a data
+                          // loss trap. It now exits the same way clicking
+                          // away or Cmd/Ctrl+Enter already do: save and
+                          // finish editing, nothing discarded.
                           if (event.key === "Escape") {
-                            event.currentTarget.innerHTML = richTextToHtml(
-                              layer.text
-                            )
-                            setEditingLayerId(null)
                             event.currentTarget.blur()
                           }
                           if (
